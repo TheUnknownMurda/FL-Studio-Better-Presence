@@ -4,7 +4,7 @@ FL Studio in your Discord status, from when FL Studio opens until it closes.
 
     FL-Studio-Better-Presence.exe                 starts the app and opens its settings
     FL-Studio-Better-Presence.exe --background    starts it quietly, as at Windows sign-in
-    FL-Studio-Better-Presence.exe --quit          quits the running app
+    FL-Studio-Better-Presence.exe --quit          quits the running app, and waits until it has quit
 
 Starting it again while it runs opens the settings of the running app.
 """
@@ -321,6 +321,7 @@ def main(argv=None):
     if not instance.first:
         if "--quit" in argv:
             Instance.send("quit")
+            instance.wait_for_exit()  # so that the installer can replace the app's files right after
             return 0
         if background:
             return 0  # started by Windows while already running

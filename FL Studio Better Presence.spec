@@ -1,4 +1,5 @@
-# PyInstaller recipe of the .exe: a single file holding Python, Qt and the app. build.bat runs it.
+# PyInstaller recipe of the app: dist\FL-Studio-Better-Presence\, the .exe and the Python and Qt it runs on, which
+# the installer (installer\setup.iss) installs. build.bat runs both.
 import sys
 
 from PyInstaller.utils.win32 import versioninfo
@@ -36,14 +37,16 @@ UNUSED = ("opengl32sw", "qdirect2d", "qminimal", "qtuiotouchplugin", "qsvgicon",
           "qtga", "qtiff", "qwbmp", "qwebp", "plugins\\tls", "networkinformation", "libssl", "libcrypto")
 a.binaries = [entry for entry in a.binaries if not any(part in entry[0].lower().replace("/", "\\") for part in UNUSED)]
 pyz = PYZ(a.pure)
+# A folder rather than a single file, which would unpack itself in the temporary folder at each start: the app
+# starts faster, and looks less suspicious to antivirus software
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
+    exclude_binaries=True,
     name=FILE_NAME,
     icon="assets/app.ico",
     version=version,
     console=False,
     upx=False,  # compressed programs look suspicious to antivirus software
 )
+COLLECT(exe, a.binaries, a.datas, name=FILE_NAME, upx=False)

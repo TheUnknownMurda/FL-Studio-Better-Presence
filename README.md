@@ -12,6 +12,11 @@ Discord Rich Presence for FL Studio. Shows what you're making in FL Studio in yo
 Nothing to install in FL Studio: no script, no MIDI device. The app runs next to the clock and reads FL Studio's
 windows from the outside, the way Windows shows them.
 
+<p align="center">
+  <a href="https://github.com/TheUnknownMurda/FL-Studio-Better-Presence/releases/latest/download/FL-Studio-Better-Presence-Setup.exe"><b>Download the installer</b></a>
+  · free, for Windows 10 and 11 · <a href="#installing">how to install it</a>
+</p>
+
 ## Features
 
 - **What you're doing**, from the FL Studio window you work in: Composing in the Piano roll, Arranging in the
@@ -35,31 +40,48 @@ windows from the outside, the way Windows shows them.
 
 ## Requirements
 
-- Windows 10 or 11
+- Windows 10 or 11, 64-bit
 - FL Studio. Made with FL Studio 2025; older versions should work but haven't been tested yet.
 - The **Discord desktop app**, running. Discord in a web browser doesn't work.
 
 ## Installing
 
-1. Download `FL-Studio-Better-Presence.exe` from the [latest release](https://github.com/TheUnknownMurda/FL-Studio-Better-Presence/releases/latest).
-2. Move it to a folder where it can stay, like `Documents`: Windows starts it from there when you sign in.
-3. Double-click it. Windows may show **Windows protected your PC**, because the app isn't signed:
-   click **More info**, then **Run anyway**.
-4. The settings window opens. You can close it: the app keeps running next to the clock.
+It takes a minute and needs no administrator password.
 
-Your status shows up in Discord as soon as FL Studio is open.
+1. **Download the installer**:
+   [`FL-Studio-Better-Presence-Setup.exe`](https://github.com/TheUnknownMurda/FL-Studio-Better-Presence/releases/latest/download/FL-Studio-Better-Presence-Setup.exe).
+   It's also on the [latest release](https://github.com/TheUnknownMurda/FL-Studio-Better-Presence/releases/latest)'s
+   page, under **Assets**.
+   - If your browser says the file isn't commonly downloaded, choose to keep it. In Microsoft Edge: open the
+     downloads list, click **…** next to the file, then **Keep**, **Show more** and **Keep anyway**.
+2. **Open the file you downloaded**, from your browser's downloads list or your **Downloads** folder.
+   - If Windows shows **Windows protected your PC**, click **More info**, then **Run anyway**. Windows shows this for
+     new apps that aren't signed with a paid certificate, like this free one.
+3. In the window that opens, click **Install**, then **Finish**.
+4. The app starts and its settings window shows what your friends will see. You can close it: the app keeps running
+   next to the clock, and starts with Windows from now on.
+5. **In Discord**, check that your activity is shared with others: open **User Settings** (the gear next to your
+   name), then **Activity Privacy**, and turn on the setting that shares your activity.
+6. **Open FL Studio**: your status shows up in Discord within a few seconds.
+
+To change the settings later, click the app's icon next to the clock, or open **FL Studio Better Presence** from the
+Start menu.
 
 ## Updating
 
-Start the new `FL-Studio-Better-Presence.exe`: it replaces the version that runs, keeps your settings, and is the
-one Windows starts from then on. To put it where the old one was, quit the app first (right-click its icon, then
-**Quit**): Windows doesn't let the file of a running app be replaced.
+1. Download the new [`FL-Studio-Better-Presence-Setup.exe`](https://github.com/TheUnknownMurda/FL-Studio-Better-Presence/releases/latest/download/FL-Studio-Better-Presence-Setup.exe).
+2. Open it, then click **Install** and **Finish**. It closes the app, updates it and starts it again. Your settings
+   and statistics are kept.
+
+Version 1.1 and the ones before it came as a single `FL-Studio-Better-Presence.exe`, with no installer. Install the
+new version as above: it takes over from the old one, and Windows starts the new one from then on. You can then
+delete the old `FL-Studio-Better-Presence.exe`.
 
 ## Using it
 
 The app's icon is next to the clock. Windows may hide it under the **^** arrow: drag it to the taskbar to keep it in sight.
 
-- **Click** it to open the settings.
+- **Click** it to open the settings. Opening the app from the Start menu opens them too.
 - **Right-click** it for **Show my status**, **Secret mode**, **Settings…** and **Quit**. The menu also shows the
   time you spent in FL Studio today and this week.
 - Its dot tells what Discord shows: **blue** for your status, **grey** when FL Studio is closed or your status is hidden,
@@ -123,10 +145,9 @@ app's settings folder, and never leaves your computer.
 
 ## Uninstalling
 
-1. In the settings, turn off **Start with Windows**.
-2. Right-click the app's icon, then **Quit**.
-3. Delete `FL-Studio-Better-Presence.exe`, and the folder of its settings and statistics: type
-   `%APPDATA%\FL Studio Better Presence` in the File Explorer address bar.
+1. Open Windows' **Settings**, then **Apps** and **Installed apps**. On Windows 10: **Apps** and **Apps & features**.
+2. Find **FL Studio Better Presence**, click **…** next to it (on Windows 10, click it), then **Uninstall**.
+3. The app closes, and Windows won't start it anymore. Choose whether to delete your settings and statistics too.
 
 ## Troubleshooting
 
@@ -136,8 +157,10 @@ app's settings folder, and never leaves your computer.
 | The tempo or the genre doesn't show | Save the project: they're read from the saved file. The genre, the artists and the link are typed in FL Studio's **Project info** (F11). |
 | The whole project timer starts at 0 | FL Studio counts the time spent in the saved project: a project that was never saved starts at 0. |
 | It says "Making music" | Click in one of FL Studio's windows: the Piano roll, the Playlist... The Mixer counts once you click a mixer track. |
+| My browser won't keep the download | Choose to keep it. In Microsoft Edge: open the downloads list, click **…** next to the file, then **Keep**, **Show more** and **Keep anyway**. |
 | "Windows protected your PC" | Click **More info**, then **Run anyway**. |
-| I can't find the icon | Click the **^** arrow next to the clock. |
+| "Smart App Control blocked an app" | Smart App Control, which some Windows 11 PCs have turned on, only runs the apps signed with a paid certificate, which this free app isn't: it can't run while Smart App Control is on. |
+| I can't find the icon | Click the **^** arrow next to the clock, or open **FL Studio Better Presence** from the Start menu. |
 | A placeholder is shown as is, like `{task]` | Check the spelling and the braces: `{task}`. |
 
 The app keeps a short log in `%APPDATA%\FL Studio Better Presence\log.txt`: attach it when you
@@ -158,7 +181,10 @@ The app keeps a short log in `%APPDATA%\FL Studio Better Presence\log.txt`: atta
   ```
 
 - **Tests**: `.venv\Scripts\python -m pytest`. They use a fake Discord, so your status isn't touched.
-- **Building** the `.exe`: `build.bat`, which runs the tests first. The result is in `dist\`.
+- **Building** the installer: install [Inno Setup 6](https://jrsoftware.org/isdl.php), then run `build.bat`, which
+  runs the tests first. The app is built in `dist\FL-Studio-Better-Presence\`, then its installer,
+  `dist\FL-Studio-Better-Presence-Setup.exe`, from `installer\setup.iss`. Its pictures:
+  `.venv\Scripts\python tools\installer_images.py`.
 - **Icons**: edit the `.svg` files in `assets/icons`, then run `.venv\Scripts\python tools\export_icons.py`.
   Discord downloads the `.png` files from this repository (`ASSETS_URL` in `src/flbp/presence.py`), so push them
   before releasing, and raise `v=` in `ASSETS_URL` after changing an icon so Discord doesn't keep the old one.
