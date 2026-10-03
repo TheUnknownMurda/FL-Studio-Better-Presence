@@ -34,7 +34,7 @@ windows from the outside, the way Windows shows them.
 
 ## Installing
 
-1. Download `FL Studio Better Presence.exe` from the [latest release](https://github.com/TheUnknownMurda/FL-Studio-Better-Presence/releases/latest).
+1. Download `FL-Studio-Better-Presence.exe` from the [latest release](https://github.com/TheUnknownMurda/FL-Studio-Better-Presence/releases/latest).
 2. Move it to a folder where it can stay, like `Documents`: Windows starts it from there when you sign in.
 3. Double-click it. Windows may show **Windows protected your PC**, because the app isn't signed:
    click **More info**, then **Run anyway**.
@@ -103,7 +103,7 @@ the icons from this GitHub repository.
 
 1. In the settings, turn off **Start with Windows**.
 2. Right-click the app's icon, then **Quit**.
-3. Delete `FL Studio Better Presence.exe`, and the settings folder: type `%APPDATA%\FL Studio Better Presence`
+3. Delete `FL-Studio-Better-Presence.exe`, and the settings folder: type `%APPDATA%\FL Studio Better Presence`
    in the File Explorer address bar.
 
 ## Troubleshooting

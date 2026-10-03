@@ -2,9 +2,9 @@
 The app: its icon next to the clock with its menu, and the settings window. It shows what you're making in
 FL Studio in your Discord status, from when FL Studio opens until it closes.
 
-    FL Studio Better Presence.exe                 starts the app and opens its settings
-    FL Studio Better Presence.exe --background    starts it quietly, as at Windows sign-in
-    FL Studio Better Presence.exe --quit          quits the running app
+    FL-Studio-Better-Presence.exe                 starts the app and opens its settings
+    FL-Studio-Better-Presence.exe --background    starts it quietly, as at Windows sign-in
+    FL-Studio-Better-Presence.exe --quit          quits the running app
 
 Starting it again while it runs opens the settings of the running app.
 """

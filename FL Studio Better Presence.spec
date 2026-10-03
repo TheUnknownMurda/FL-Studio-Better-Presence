@@ -7,6 +7,8 @@ sys.path.insert(0, "src")
 import flbp  # noqa: E402
 
 numbers = tuple(int(part) for part in flbp.__version__.split(".")) + (0,)
+# Without spaces, which GitHub turns into dots in the files of a release
+FILE_NAME = flbp.APP_NAME.replace(" ", "-")
 version = versioninfo.VSVersionInfo(
     ffi=versioninfo.FixedFileInfo(filevers=numbers, prodvers=numbers),
     kids=[
@@ -15,7 +17,7 @@ version = versioninfo.VSVersionInfo(
             versioninfo.StringStruct("FileDescription", flbp.APP_NAME),
             versioninfo.StringStruct("ProductVersion", flbp.__version__),
             versioninfo.StringStruct("FileVersion", flbp.__version__),
-            versioninfo.StringStruct("OriginalFilename", f"{flbp.APP_NAME}.exe"),
+            versioninfo.StringStruct("OriginalFilename", f"{FILE_NAME}.exe"),
             versioninfo.StringStruct("LegalCopyright", "TheUnknownMurda"),
         ])]),
         versioninfo.VarFileInfo([versioninfo.VarStruct("Translation", [1033, 1200])]),
@@ -39,7 +41,7 @@ exe = EXE(
     a.scripts,
     a.binaries,
     a.datas,
-    name=flbp.APP_NAME,
+    name=FILE_NAME,
     icon="assets/app.ico",
     version=version,
     console=False,
