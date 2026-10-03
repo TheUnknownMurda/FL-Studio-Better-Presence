@@ -12,7 +12,10 @@ log = logging.getLogger("flbp")
 
 DEFAULTS = {
     "enabled": True,  # show my status
-    "secret": False,  # hide the project's name, for client work
+    # Hide the project's name, for client work: never, always, or for the projects whose name holds a word
+    "secret_mode": "off",
+    "secret_words": "client",  # separated by commas
+    "secret_mode_before": "off",  # where unchecking Secret mode in the icon's menu goes back to
     "show_task": True,  # first line: what the user is doing
     "show_project": True,  # first line: the project's name
     "show_bpm": True,  # second line: the tempo
@@ -23,14 +26,20 @@ DEFAULTS = {
     "small_icon_text": "",
     "button_label": "",
     "button_url": "",
+    "button_link": "mine",  # button_url, or the link typed in the open project's Project info
     "idle_minutes": 10,
     "idle_action": "show",
     "custom_text_while_idle": False,
-    "reset_timer_per_project": True,
+    # The timer restarts for each project, counts since FL Studio was opened, or shows the whole project's time
+    "timer_mode": "session",
 }
 CHOICES = {
+    "secret_mode": ("off", "always", "some"),
+    "secret_mode_before": ("off", "some"),
     "small_icon": ("task", "custom", "none"),
+    "button_link": ("mine", "project"),
     "idle_action": ("show", "hide", "off"),  # show "Idle", hide the status, or do nothing
+    "timer_mode": ("session", "fl", "project"),
 }
 IDLE_MINUTES_RANGE = (1, 240)
 
@@ -62,6 +71,11 @@ class Settings:
             return
         if not isinstance(saved, dict):
             return
+        # Settings of version 1.0, replaced by choices of three
+        if "secret_mode" not in saved and isinstance(saved.get("secret"), bool):
+            saved["secret_mode"] = "always" if saved["secret"] else "off"
+        if "timer_mode" not in saved and isinstance(saved.get("reset_timer_per_project"), bool):
+            saved["timer_mode"] = "session" if saved["reset_timer_per_project"] else "fl"
         for key, default in DEFAULTS.items():
             value = saved.get(key)
             if type(value) is type(default) and value in CHOICES.get(key, (value,)):

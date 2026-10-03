@@ -275,6 +275,12 @@
     color: #949BA4;
 }
 
+#SettingsWindow QLabel#statsTotal {
+    color: #F2F3F5;
+    font-size: 18pt;
+    font-weight: bold;
+}
+
 QToolTip {
     background-color: #111214;
     color: #DBDEE1;

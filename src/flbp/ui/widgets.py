@@ -200,21 +200,79 @@ class SwitchRow(QtWidgets.QWidget):
         self.switch.set_quietly(on)
 
 
+class FlowLayout(QtWidgets.QLayout):
+    """Lays its widgets out in a row that goes on to a new line when the space runs out."""
+
+    def __init__(self, parent=None, spacing=6):
+        super().__init__(parent)
+        self._items = []
+        self._spacing = spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index):
+        return self._items.pop(index) if 0 <= index < len(self._items) else None
+
+    def expandingDirections(self):
+        return QtCore.Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._arrange(QtCore.QRect(0, 0, width, 0), move=False)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._arrange(rect, move=True)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QtCore.QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        return size
+
+    def _arrange(self, rect, move):
+        x, y, line_height = rect.x(), rect.y(), 0
+        for item in self._items:
+            hint = item.sizeHint()
+            if x + hint.width() > rect.right() + 1 and line_height:
+                x, y, line_height = rect.x(), y + line_height + self._spacing, 0
+            if move:
+                item.setGeometry(QtCore.QRect(QtCore.QPoint(x, y), hint))
+            x += hint.width() + self._spacing
+            line_height = max(line_height, hint.height())
+        return y + line_height - rect.y()
+
+
 class PlaceholderBar(QtWidgets.QWidget):
     """Buttons inserting in a text field a placeholder that Discord shows as its value."""
 
     BUTTONS = (("{task}", "Task", "What you're doing, like Composing"),
                ("{project}", "Project", "The project's name, like Summer Vibes"),
                ("{bpm}", "BPM", "The tempo of the saved project, like 140 BPM"),
-               ("{version}", "Version", "FL Studio's version, like 2025"))
+               ("{version}", "Version", "FL Studio's version, like 2025"),
+               ("{genre}", "Genre", "The genre typed in the project's Project info, like UK Drill"),
+               ("{artists}", "Artists", "The artists typed in the project's Project info"),
+               ("{time}", "Time", "The time spent on the project, counted by FL Studio, like 11 h 54"))
 
     def __init__(self, field):
         super().__init__()
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout = FlowLayout(self)
         label = QtWidgets.QLabel("Insert")
         label.setObjectName("hint")
+        label.setMinimumHeight(22)
         layout.addWidget(label)
         for placeholder, name, tip in self.BUTTONS:
             button = QtWidgets.QPushButton(name)
@@ -224,12 +282,50 @@ class PlaceholderBar(QtWidgets.QWidget):
             button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)  # keeps the text cursor in the field
             button.clicked.connect(lambda checked=False, text=placeholder: self._insert(field, text))
             layout.addWidget(button)
-        layout.addStretch()
 
     @staticmethod
     def _insert(field, text):
         field.insert(text)
         field.setFocus()
+
+
+class WeekBars(QtWidgets.QWidget):
+    """Seven bars, Monday to Sunday, for the time spent in FL Studio each day: today's stands out."""
+
+    _BAR = QtGui.QColor("#4E5058")
+    _TODAY = QtGui.QColor("#5865F2")
+    _LABEL = QtGui.QColor("#949BA4")
+    NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+    def __init__(self):
+        super().__init__()
+        self.setFixedSize(7 * 34, 110)
+        self._values = [0.0] * 7
+        self._today = -1
+
+    def set_days(self, values, today):
+        if list(values) != self._values or today != self._today:
+            self._values, self._today = list(values), today
+            self.update()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        font = painter.font()
+        font.setPointSizeF(8)
+        painter.setFont(font)
+        label_height = 18
+        top = 4
+        tallest = max(self._values) or 1.0
+        for index, value in enumerate(self._values):
+            x = index * 34 + 6
+            height = max(3.0, (self.height() - label_height - top) * value / tallest) if value else 3.0
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(self._TODAY if index == self._today else self._BAR)
+            painter.drawRoundedRect(QtCore.QRectF(x, self.height() - label_height - height, 22, height), 4, 4)
+            painter.setPen(self._LABEL)
+            painter.drawText(QtCore.QRectF(index * 34, self.height() - label_height + 2, 34, label_height),
+                             QtCore.Qt.AlignmentFlag.AlignHCenter, self.NAMES[index])
 
 
 def text_field(placeholder, max_length):

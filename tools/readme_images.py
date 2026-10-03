@@ -21,6 +21,7 @@ from PySide6 import QtCore, QtGui, QtWidgets  # noqa: E402
 from flbp.discord_ipc import Status  # noqa: E402
 from flbp.engine import Engine  # noqa: E402
 from flbp.fl_watcher import FLState, Panel  # noqa: E402
+from flbp.flp import ProjectInfo  # noqa: E402
 from flbp.settings import Settings  # noqa: E402
 from flbp.ui import RESOURCES  # noqa: E402
 from flbp.ui.settings_window import PreviewPanel, SettingsWindow  # noqa: E402
@@ -62,7 +63,7 @@ def engine_with(settings):
     started = time.time() - ELAPSED
     engine = Engine(settings, PretendDiscord(), PretendFL(), clock=lambda: started)
     engine.tick()
-    engine.bpm = 140.0  # as read from the saved project
+    engine.project = ProjectInfo(bpm=140.0, genre="Hip hop")  # as read from the saved project
     engine.refresh()
     return engine
 
@@ -105,7 +106,7 @@ def icons_picture():
     items = [("composing", "Composing", "Piano roll"), ("arranging", "Arranging", "Playlist"),
              ("beatmaking", "Beat making", "Channel rack"), ("mixing", "Mixing", "Mixer, effects"),
              ("sounddesign", "Sound design", "Instruments"), ("browsing", "Browsing sounds", "Browser"),
-             ("idle", "Idle", "Away for a while")]
+             ("exporting", "Exporting", "While exporting"), ("idle", "Idle", "Away for a while")]
     scale, cell_w, cell_h, icon, margin = 2, 112, 118, 56, 24
     width, height = margin * 2 + len(items) * cell_w, margin * 2 + cell_h
     image = QtGui.QImage(width * scale, height * scale, QtGui.QImage.Format.Format_ARGB32)

@@ -1,9 +1,11 @@
 """
-Builds the Discord status from what FL Studio shows and the user's settings.
+Builds the Discord status from what FL Studio shows, what it saved in the project's file, and the user's settings.
 """
+import os
 import re
 
-from .flp import format_bpm
+from .flp import ProjectInfo, format_bpm
+from .stats import format_duration
 
 # For each of FL's windows: what the user is doing, the window's name in FL, and its icon
 WINDOWS = {
@@ -18,9 +20,11 @@ WINDOWS = {
 DEFAULT_TASK = "Making music"  # until the user works in one of the windows above
 IDLE_TASK = "Idle"
 IDLE_ICON = "idle"
+EXPORT_TASK = "Exporting"  # while FL exports the song, whichever window is in front
+EXPORT_ICON = "exporting"
 LOGO = "fl-studio"
 SEPARATOR = " · "
-PLACEHOLDERS = ("task", "project", "bpm", "version")
+PLACEHOLDERS = ("task", "project", "bpm", "version", "genre", "artists", "time")
 
 # Discord downloads the images from the project's repository. HEAD is its default branch, and the version
 # makes Discord download an image again after it changed.
@@ -30,15 +34,27 @@ ASSETS_URL = "https://raw.githubusercontent.com/TheUnknownMurda/FL-Studio-Better
 _SEPARATORS = r"[·•|/:,\-–—]"
 
 
-def build(state, bpm, settings, idle=False, timer_start=None):
-    """The activity for Discord, as a dict, or None when FL Studio isn't running."""
+def build(state, project, settings, idle=False, timer_start=None, project_time=None):
+    """
+    The activity for Discord, as a dict, or None when FL Studio isn't running. project is what FL saved in the
+    project's file (a flp.ProjectInfo) or None, and project_time the seconds spent on the project so far.
+    """
     if not state.running:
         return None
+    info = project or ProjectInfo()
+    secret = is_secret(settings, state)
     window = WINDOWS.get(state.panel.kind) if state.panel else None
-    task = IDLE_TASK if idle else window[0] if window else DEFAULT_TASK
-    project = state.project + ("*" if state.unsaved else "") if state.project and not settings["secret"] else ""
-    values = {"task": task, "project": project, "bpm": f"{format_bpm(bpm)} BPM" if bpm else "",
-              "version": state.version}
+    if idle:
+        task = IDLE_TASK
+    elif state.export_file:
+        task = EXPORT_TASK
+    else:
+        task = window[0] if window else DEFAULT_TASK
+    project = state.project + ("*" if state.unsaved else "") if state.project and not secret else ""
+    values = {"task": task, "project": project, "bpm": f"{format_bpm(info.bpm)} BPM" if info.bpm else "",
+              "version": state.version, "genre": info.genre,
+              "artists": "" if secret else info.artists,  # a client's name could be among them
+              "time": format_duration(project_time) if project_time else ""}
     # While idle, the user's own text gives way to "Idle", unless the user wants to keep it
     own_text = not idle or settings["custom_text_while_idle"]
 
@@ -66,7 +82,7 @@ def build(state, bpm, settings, idle=False, timer_start=None):
 
     assets = activity["assets"] = {"large_image": ASSETS_URL.format(LOGO),
                                    "large_text": f"FL Studio {state.version}".strip()}
-    small_image, small_text = small_icon(state, window, idle, settings, values)
+    small_image, small_text = small_icon(state, window, idle, settings, values, secret)
     if small_image:
         assets["small_image"] = small_image
         small_text = discord_text(small_text)
@@ -74,12 +90,36 @@ def build(state, bpm, settings, idle=False, timer_start=None):
             assets["small_text"] = small_text
 
     label = discord_text(settings["button_label"], minimum=1, maximum=32)
-    if label and is_link(settings["button_url"], 512):
-        activity["buttons"] = [{"label": label, "url": settings["button_url"]}]
+    if settings["button_link"] == "project":
+        link = "" if secret else project_link(info.url)  # the project's own link would tell which it is
+    else:
+        link = settings["button_url"]
+    if label and is_link(link, 512):
+        activity["buttons"] = [{"label": label, "url": link}]
     return activity
 
 
-def small_icon(state, window, idle, settings, values):
+def is_secret(settings, state):
+    """True when the project's names must stay hidden: always, or for a project whose name holds a chosen word."""
+    mode = settings["secret_mode"]
+    if mode == "always":
+        return True
+    if mode != "some" or not state.project:
+        return False
+    words = [word.strip().lower() for word in settings["secret_words"].split(",") if word.strip()]
+    names = [state.project.lower(), os.path.basename(state.project_file).lower()]
+    return any(word in name for word in words for name in names)
+
+
+def project_link(url):
+    """The link typed in Project info, made usable: "www.instagram.com/me" gives "https://www.instagram.com/me"."""
+    url = (url or "").strip()
+    if url and not url.lower().startswith(("https://", "http://")) and "." in url and " " not in url:
+        url = "https://" + url
+    return url
+
+
+def small_icon(state, window, idle, settings, values, secret):
     """(image, text shown when hovering it) for the small icon on the FL Studio logo, or (None, "")."""
     mode = settings["small_icon"]
     if mode == "custom":
@@ -89,9 +129,14 @@ def small_icon(state, window, idle, settings, values):
         return None, ""
     if idle:
         return ASSETS_URL.format(IDLE_ICON), IDLE_TASK
+    if state.export_file:
+        text = "Export" if secret else state.export_file
+        if state.export_progress is not None:
+            text += f"{SEPARATOR}{state.export_progress}%"
+        return ASSETS_URL.format(EXPORT_ICON), text
     if not window:
         return None, ""
-    return ASSETS_URL.format(window[2]), window_text(state.panel, settings["secret"])
+    return ASSETS_URL.format(window[2]), window_text(state.panel, secret)
 
 
 def window_text(panel, secret=False):

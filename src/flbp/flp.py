@@ -1,7 +1,7 @@
 """
-Reads what FL Studio saves at the start of a project (.flp): its tempo, and its title from Project info, which
-FL shows in its title bar instead of the file's name. The tempo is the only project data FL shares without a
-MIDI script.
+Reads what FL Studio saves at the start of a project (.flp): its tempo, the time spent on it, and what was typed
+in Project info: title (which FL shows in its title bar instead of the file's name), genre, artists and link.
+FL shares none of it without a MIDI script.
 
 A .flp is an "FLhd" header followed by an "FLdt" chunk of events. Each event starts with its id, which also
 gives the size of its value: below 64 one byte, below 128 two, below 192 four, and above that a length
@@ -12,15 +12,18 @@ from dataclasses import dataclass
 
 TEMPO = 156  # tempo x 1000, since FL 3.4
 LEGACY_TEMPO = 66  # whole tempo, before FL 3.4
-TITLE = 194  # the title typed in Project info, in UTF-16
+# What was typed in Project info, in UTF-16
+TITLE, URL, GENRE, ARTISTS = 194, 197, 206, 207
+# When the project was created and the time spent on it, as two Delphi dates: days, as 8-byte floats
+TIME_INFO = 237
 # The project's own information comes before its first channel and pattern: no need to read further
 FIRST_CHANNEL, FIRST_PATTERN = 64, 65
+TEXTS = {TITLE: "title", URL: "url", GENRE: "genre", ARTISTS: "artists"}
 # Events that don't follow the size rule. FL 25.2.3 and later write event 172 near the start of every project
 # with a 3-byte value: read as 4 bytes, the events after it are lost, the tempo among them.
 SIZE_EXCEPTIONS = {172: 3}
 MIN_BPM, MAX_BPM = 10, 522  # FL's tempo range: anything else means the file wasn't read right
-# The tempo and the title are among the first events: within 200 bytes in the 170 projects tried, which weigh
-# up to 7 MB
+# All of it comes among the first events: within 4.1 KB in the 172 projects tried, which weigh up to 7 MB
 HEAD_SIZE = 65536
 
 
@@ -28,6 +31,10 @@ HEAD_SIZE = 65536
 class ProjectInfo:
     bpm: float = None  # like 140.0, None when it couldn't be read
     title: str = None  # "" for a project without a title
+    url: str = ""
+    genre: str = ""
+    artists: str = ""
+    spent: float = None  # seconds FL counted the project open, when it was saved; None when unknown
 
 
 def read_project(path):
@@ -69,7 +76,7 @@ def _scan(data, sizes):
         if data[position:position + 4] != b"FLdt":
             return info
         position += 8
-        while position < len(data) and (tempo is None or info.title is None):
+        while position < len(data):
             event = data[position]
             position += 1
             if event in (FIRST_CHANNEL, FIRST_PATTERN):
@@ -94,8 +101,13 @@ def _scan(data, sizes):
                     shift += 7
                     if not byte & 0x80:
                         break
-                if event == TITLE:
-                    info.title = data[position:position + size].decode("utf-16-le", "ignore").rstrip("\0").strip()
+                if event in TEXTS:
+                    text = data[position:position + size].decode("utf-16-le", "ignore").rstrip("\0").strip()
+                    setattr(info, TEXTS[event], text)
+                elif event == TIME_INFO and size >= 16:
+                    spent_days = struct.unpack_from("<d", data, position + 8)[0]
+                    if 0 <= spent_days < 36500:
+                        info.spent = spent_days * 86400
             position += size
     except (IndexError, struct.error):
         pass  # a file cut short: what was read before still counts

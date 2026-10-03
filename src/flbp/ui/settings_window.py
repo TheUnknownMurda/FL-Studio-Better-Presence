@@ -2,6 +2,7 @@
 The settings window: every setting on the left, and on the right what friends see in Discord, read from the
 engine every second. Every change is saved and sent to Discord right away.
 """
+import datetime
 import logging
 import time
 
@@ -10,14 +11,18 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from .. import APP_NAME, presence, startup
 from ..discord_ipc import Status, discord_running
 from ..settings import IDLE_MINUTES_RANGE
+from ..stats import format_duration
 from . import RESOURCES, drawing
-from .widgets import (Card, PlaceholderBar, Segmented, Switch, SwitchCard, SwitchRow, message_label,
+from .widgets import (Card, PlaceholderBar, Segmented, Switch, SwitchCard, SwitchRow, WeekBars, message_label,
                       set_text_quietly, show_message, text_field)
 
 log = logging.getLogger("flbp")
 
 SMALL_ICONS = {"task": "What I'm doing", "custom": "My image", "none": "None"}
 IDLE_ACTIONS = {"show": "Show “Idle”", "hide": "Hide my status", "off": "Do nothing"}
+SECRET_MODES = {"off": "Off", "always": "Always", "some": "Some projects"}
+TIMER_MODES = {"session": "This session", "fl": "Since FL Studio opened", "project": "Whole project"}
+BUTTON_LINKS = {"mine": "My link", "project": "The project's link"}
 
 
 def icon_image(name):
@@ -200,11 +205,13 @@ class IconCard(Card):
 
 
 class ButtonCard(Card):
-    """A button under the status, for friends."""
+    """A button under the status, for friends: to the user's link, or to the open project's."""
 
     def __init__(self):
-        super().__init__("Button", "A link under your status that your friends can click, like your SoundCloud. "
+        super().__init__("Button", "A link under your status that your friends can click. "
                                    "Discord doesn't show it to you.")
+        self.source = Segmented(BUTTON_LINKS)
+        self.content.addWidget(self.source)
         grid = QtWidgets.QGridLayout()
         grid.setHorizontalSpacing(10)
         grid.setVerticalSpacing(6)
@@ -212,16 +219,24 @@ class ButtonCard(Card):
         self.link = text_field("https://soundcloud.com/...", 512)
         grid.addWidget(QtWidgets.QLabel("Text"), 0, 0)
         grid.addWidget(self.label_field, 0, 1)
-        grid.addWidget(QtWidgets.QLabel("Link"), 1, 0)
+        self.link_label = QtWidgets.QLabel("Link")
+        grid.addWidget(self.link_label, 1, 0)
         grid.addWidget(self.link, 1, 1)
         self.error = message_label("error")
         grid.addWidget(self.error, 2, 1)
         grid.setColumnStretch(1, 1)
         self.content.addLayout(grid)
+        self.explanation = QtWidgets.QLabel()
+        self.explanation.setObjectName("hint")
+        self.explanation.setWordWrap(True)
+        self.content.addWidget(self.explanation)
+        self._project_link = ""
+        self.source.changed.connect(self._fields_changed)
         self.label_field.textChanged.connect(self._fields_changed)
         self.link.textChanged.connect(self._fields_changed)
 
-    def load(self, label, link):
+    def load(self, label, link, source):
+        self.source.set_value(source)
         set_text_quietly(self.label_field, label)
         set_text_quietly(self.link, link)
         self._check()
@@ -232,18 +247,143 @@ class ButtonCard(Card):
     def link_text(self):
         return self.link.text().strip()
 
+    def show_project_link(self, link):
+        """The link typed in the open project's Project info, shown when the button uses it."""
+        if link != self._project_link:
+            self._project_link = link
+            self._check()
+
     def _fields_changed(self):
         self._check()
         self.changed.emit()
 
     def _check(self):
+        mine = self.source.value() == "mine"
+        self.link_label.setVisible(mine)
+        self.link.setVisible(mine)
         label, link = self.label(), self.link_text()
-        if bool(label) != bool(link):
-            show_message(self.error, "Fill in both the text and the link to show the button.")
-        elif link and presence.link_problem(link):
-            show_message(self.error, f"The link {presence.link_problem(link)}.")
+        if mine:
+            self.explanation.hide()
+            if bool(label) != bool(link):
+                show_message(self.error, "Fill in both the text and the link to show the button.")
+            elif link and presence.link_problem(link):
+                show_message(self.error, f"The link {presence.link_problem(link)}.")
+            else:
+                show_message(self.error, "")
+            return
+        show_message(self.error, "" if label else "Type the text of the button to show it.")
+        now = f" Now: {self._project_link}." if self._project_link else ""
+        self.explanation.setText("The link typed in the open project's Project info (F11), like your YouTube "
+                                 f"channel. A project without one shows no button, and neither does secret mode.{now}")
+        self.explanation.show()
+
+
+class SecretCard(Card):
+    """Hiding the project's names: never, always, or for the projects whose name holds a word."""
+
+    HINTS = {
+        "off": "Every project shows its name.",
+        "always": "Hides the names of the project, the channels and the windows, for client work. "
+                  "Also in the menu of the app's icon.",
+        "some": "Hides them only for the projects whose name holds one of these words, separated by commas.",
+    }
+
+    def __init__(self):
+        super().__init__("Secret mode")
+        self.mode = Segmented(SECRET_MODES)
+        self.content.addWidget(self.mode)
+        self.words = text_field("client, #private", 200)
+        self.content.addWidget(self.words)
+        self.explanation = QtWidgets.QLabel()
+        self.explanation.setObjectName("hint")
+        self.explanation.setWordWrap(True)
+        self.content.addWidget(self.explanation)
+        self.mode.changed.connect(self._mode_changed)
+        self.words.textChanged.connect(self.changed)
+
+    def load(self, mode, words):
+        self.mode.set_value(mode)
+        set_text_quietly(self.words, words)
+        self._show_mode()
+
+    def words_text(self):
+        return ", ".join(word.strip() for word in self.words.text().split(",") if word.strip())
+
+    def _mode_changed(self, mode):
+        self._show_mode()
+        if mode == "some":
+            self.words.setFocus()
+        self.changed.emit()
+
+    def _show_mode(self):
+        self.words.setVisible(self.mode.value() == "some")
+        self.explanation.setText(self.HINTS[self.mode.value()])
+
+
+class TimerCard(Card):
+    """What the status' timer counts."""
+
+    HINTS = {
+        "session": "Restarts for each project you open.",
+        "fl": "Counts the time since FL Studio was opened, whatever the project.",
+        "project": "All the time spent on the project: what FL Studio counted and saved in it, plus this session.",
+    }
+
+    def __init__(self):
+        super().__init__("Timer")
+        self.mode = Segmented(TIMER_MODES)
+        self.content.addWidget(self.mode)
+        self.explanation = QtWidgets.QLabel()
+        self.explanation.setObjectName("hint")
+        self.explanation.setWordWrap(True)
+        self.content.addWidget(self.explanation)
+        self.mode.changed.connect(self._mode_changed)
+
+    def load(self, mode):
+        self.mode.set_value(mode)
+        self.explanation.setText(self.HINTS[mode])
+
+    def _mode_changed(self, mode):
+        self.explanation.setText(self.HINTS[mode])
+        self.changed.emit()
+
+
+class StatsCard(Card):
+    """The time spent in FL Studio this week, from the statistics kept on this computer."""
+
+    def __init__(self):
+        super().__init__("Your week in FL Studio", "Counted while FL Studio is open and you aren't away. "
+                                                   "Kept on this computer only.")
+        row = QtWidgets.QHBoxLayout()
+        row.setSpacing(24)
+        self.bars = WeekBars()
+        row.addWidget(self.bars, 0, QtCore.Qt.AlignmentFlag.AlignBottom)
+        texts = QtWidgets.QVBoxLayout()
+        texts.setSpacing(4)
+        self.total = QtWidgets.QLabel()
+        self.total.setObjectName("statsTotal")
+        self.today = QtWidgets.QLabel()
+        self.top = QtWidgets.QLabel()
+        self.top.setWordWrap(True)
+        for label in (self.today, self.top):
+            label.setObjectName("hint")
+        for label in (self.total, self.today, self.top):
+            texts.addWidget(label)
+        row.addLayout(texts, 1)
+        row.setAlignment(texts, QtCore.Qt.AlignmentFlag.AlignTop)  # a stretch here would make the card grow
+        self.content.addLayout(row)
+
+    def show_stats(self, stats, now):
+        week = stats.week(now)
+        self.bars.set_days([seconds for _, seconds in week], datetime.date.fromtimestamp(now).weekday())
+        self.total.setText(format_duration(sum(seconds for _, seconds in week)))
+        self.today.setText(f"this week · {format_duration(stats.today(now))} today")
+        top = stats.top_project(now)
+        if top and top[1] >= 60:
+            name = top[0] or "an untitled project"
+            self.top.setText(f"Most worked on: {name}, {format_duration(top[1])}")
         else:
-            show_message(self.error, "")
+            self.top.setText("")
 
 
 class AwayCard(Card):
@@ -490,23 +630,19 @@ class SettingsWindow(QtWidgets.QWidget):
         self.second_line = LineCard(
             "Second line", "The tempo of your project.",
             {"show_bpm": ("Tempo", "140 BPM, read from your project each time you save it")},
-            "{bpm} · my first album")
+            "{bpm} · {genre}")
         self.second_line.suggestion = "{bpm}"
-        self.secret_card = SwitchCard("Secret mode", "Hides the names of the project, the channels and "
-                                                     "the windows, for client work.")
+        self.secret_card = SecretCard()
         self.small_icon = IconCard()
         self.button_card = ButtonCard()
         self.away_card = AwayCard()
-        self.timer_card = Card("Timer")
-        self.timer_card.restart = SwitchRow("Restart it for each project",
-                                            "Otherwise it counts the time since FL Studio was opened.")
-        self.timer_card.content.addWidget(self.timer_card.restart)
-        self.timer_card.restart.toggled.connect(self.timer_card.changed)
+        self.timer_card = TimerCard()
+        self.stats_card = StatsCard()
         self.startup_card = SwitchCard("Start with Windows", "Your status appears when FL Studio opens and "
                                                              "goes away when it closes, without opening this app.")
         self._cards = (self.first_line, self.second_line, self.secret_card, self.small_icon, self.button_card,
                        self.away_card, self.timer_card)
-        for card in self._cards + (self.startup_card,):
+        for card in self._cards + (self.stats_card, self.startup_card):
             column_layout.addWidget(card)
         column_layout.addStretch()
         scroll.setWidget(column)
@@ -604,11 +740,11 @@ class SettingsWindow(QtWidgets.QWidget):
         self.first_line.load(settings["custom_details"],
                              {"show_task": settings["show_task"], "show_project": settings["show_project"]})
         self.second_line.load(settings["custom_state"], {"show_bpm": settings["show_bpm"]})
-        self.secret_card.switch.set_quietly(settings["secret"])
+        self.secret_card.load(settings["secret_mode"], settings["secret_words"])
         self.small_icon.load(settings["small_icon"], settings["small_icon_url"], settings["small_icon_text"])
-        self.button_card.load(settings["button_label"], settings["button_url"])
+        self.button_card.load(settings["button_label"], settings["button_url"], settings["button_link"])
         self.away_card.load(settings["idle_minutes"], settings["idle_action"], settings["custom_text_while_idle"])
-        self.timer_card.restart.set_on(settings["reset_timer_per_project"])
+        self.timer_card.load(settings["timer_mode"])
         self.startup_card.switch.set_quietly(startup.is_enabled())
         self.startup_card.switch.setEnabled(startup.available())
         if not startup.available():
@@ -618,9 +754,11 @@ class SettingsWindow(QtWidgets.QWidget):
     def apply(self):
         """Saves every setting and updates the status."""
         self._apply_timer.stop()
+        secret_mode = self.secret_card.mode.value()
         values = {
             "enabled": self._enabled.isChecked(),
-            "secret": self.secret_card.switch.isChecked(),
+            "secret_mode": secret_mode,
+            "secret_words": self.secret_card.words_text(),
             "show_task": self.first_line.switches["show_task"].is_on(),
             "show_project": self.first_line.switches["show_project"].is_on(),
             "show_bpm": self.second_line.switches["show_bpm"].is_on(),
@@ -631,11 +769,14 @@ class SettingsWindow(QtWidgets.QWidget):
             "small_icon_text": self.small_icon.hover_text(),
             "button_label": self.button_card.label(),
             "button_url": self.button_card.link_text(),
+            "button_link": self.button_card.source.value(),
             "idle_minutes": self.away_card.minutes.value(),
             "idle_action": self.away_card.action.value(),
             "custom_text_while_idle": self.away_card.keep.is_on(),
-            "reset_timer_per_project": self.timer_card.restart.is_on(),
+            "timer_mode": self.timer_card.mode.value(),
         }
+        if secret_mode != "always":
+            values["secret_mode_before"] = secret_mode  # where unchecking Secret mode in the icon's menu goes back to
         if any(self.settings[key] != value for key, value in values.items()):
             self.settings.update(**values)
             self.engine.refresh()
@@ -669,6 +810,9 @@ class SettingsWindow(QtWidgets.QWidget):
 
     def refresh_preview(self):
         self.preview.show_status(self.engine.preview(), self.engine.hidden, self.engine.discord)
+        self.stats_card.show_stats(self.engine.stats, self.engine.clock())
+        project = self.engine.project
+        self.button_card.show_project_link(presence.project_link(project.url) if project else "")
 
     def _update_visibility(self):
         # Keeping the own text only matters with an own text, while "Idle" is shown

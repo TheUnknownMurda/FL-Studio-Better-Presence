@@ -5,6 +5,7 @@ import pytest
 
 from fakes import SONG, FakeDiscord, FakeWatcher, song
 from flbp.engine import Engine
+from flbp.fl_watcher import FLState
 from flbp.settings import DEFAULTS
 
 
@@ -62,7 +63,7 @@ def test_timer_kept_when_saving_a_new_project(run):
 
 
 def test_timer_counts_from_fl_studio_opening(run):
-    run.settings["reset_timer_per_project"] = False
+    run.settings["timer_mode"] = "fl"
     start = run(state=SONG)["timestamps"]["start"]
     assert run(state=song(project="Other song"))["timestamps"]["start"] == start
 
@@ -149,3 +150,63 @@ def test_tempo_read_again_after_saving(run, tmp_path):
 def test_stop(run):
     run.engine.stop()
     assert run.discord.stopped
+
+
+def write_project(path, bpm=140, spent=None, mtime=None):
+    """A small .flp with its tempo, and the time FL counted on it when given."""
+    body = bytes([156]) + struct.pack("<I", int(bpm * 1000))
+    if spent is not None:
+        body += bytes([237, 16]) + struct.pack("<dd", 46000.0, spent / 86400)
+    path.write_bytes(b"FLhd" + struct.pack("<I", 6) + b"\0" * 6 + b"FLdt" + struct.pack("<I", len(body)) + body)
+    if mtime is not None:
+        os.utime(path, (mtime, mtime))
+
+
+def test_whole_project_timer(run, tmp_path):
+    path = tmp_path / "Summer Vibes.flp"
+    write_project(path, spent=5 * 3600, mtime=run.clock.now - 3600)  # 5 hours counted by FL before today
+    run.settings["timer_mode"] = "project"
+    opened = run.clock.now + 1
+    shown = run(state=song(project_file=str(path)))
+    assert shown["timestamps"]["start"] == opened - 5 * 3600
+    run(60, used=True)
+    # Saved now: FL's count holds this session too, which mustn't count twice
+    write_project(path, spent=5 * 3600 + 61, mtime=run.clock.now)
+    assert run()["timestamps"]["start"] == opened - 5 * 3600
+
+
+def test_whole_project_timer_of_a_new_project(run, tmp_path):
+    run.settings["timer_mode"] = "project"
+    start = run(state=song(project=""))["timestamps"]["start"]
+    path = tmp_path / "First save.flp"
+    write_project(path, spent=120, mtime=run.clock.now + 30)  # saved during this session, for the first time
+    assert run(30, state=song(project="First save", project_file=str(path)))["timestamps"]["start"] == start
+
+
+def test_time_placeholder(run, tmp_path):
+    path = tmp_path / "Summer Vibes.flp"
+    write_project(path, spent=11 * 3600 + 50 * 60, mtime=run.clock.now - 3600)
+    run.settings["custom_state"] = "{time} on it"
+    run(state=song(project_file=str(path)))
+    assert run(4 * 60, used=True)["state"] == "11 h 54 on it"
+
+
+def test_export_keeps_you_busy(run):
+    run(state=song(export_file="Summer Vibes.wav"), used=True)
+    shown = run(15 * 60)  # nobody touches anything during a long export
+    assert not run.engine.idle
+    assert shown["details"] == "Exporting · Summer Vibes"
+
+
+def test_time_in_fl_studio_counted(run):
+    run(state=SONG, used=True)
+    run(30, used=True)
+    assert run.engine.stats.today(run.clock.now) == 30
+    run(10 * 60)  # away: idle after 10 minutes, which no longer count
+    counted = run.engine.stats.today(run.clock.now)
+    assert counted == 30 + 10 * 60 - 1
+    run(60)
+    assert run.engine.stats.today(run.clock.now) == counted
+    run(60, state=FLState())  # FL Studio closed
+    assert run.engine.stats.today(run.clock.now) == counted
+    assert run.engine.stats.top_project(run.clock.now) == ("Summer Vibes", counted)

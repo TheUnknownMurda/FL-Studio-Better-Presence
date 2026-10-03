@@ -22,6 +22,9 @@ user32.GetForegroundWindow.restype = wt.HWND
 user32.GetParent.restype = wt.HWND
 user32.GetParent.argtypes = [wt.HWND]
 user32.IsWindow.argtypes = [wt.HWND]
+user32.IsWindowVisible.argtypes = [wt.HWND]
+user32.FindWindowExW.restype = wt.HWND
+user32.FindWindowExW.argtypes = [wt.HWND, wt.HWND, wt.LPCWSTR, wt.LPCWSTR]
 user32.GetWindowTextW.argtypes = [wt.HWND, wt.LPWSTR, ctypes.c_int]
 user32.GetClassNameW.argtypes = [wt.HWND, wt.LPWSTR, ctypes.c_int]
 user32.GetWindowThreadProcessId.argtypes = [wt.HWND, ctypes.POINTER(wt.DWORD)]
@@ -32,6 +35,8 @@ kernel32.QueryFullProcessImageNameW.argtypes = [wt.HANDLE, wt.DWORD, wt.LPWSTR, 
 ntdll.NtQueryInformationProcess.argtypes = [wt.HANDLE, wt.ULONG, ctypes.c_void_p, wt.ULONG, ctypes.POINTER(wt.ULONG)]
 
 MAIN_WINDOW_CLASS = "TFruityLoopsMainForm"
+# The window FL shows for the whole export of a song, titled "Rendering to song.wav" (or .mp3, .ogg, .flac)
+EXPORT_WINDOW_CLASS = "TWAVRenderForm"
 
 # FL's panels, by the class of their window
 PANEL_CLASSES = {
@@ -47,6 +52,8 @@ EVENT_EDITORS = {"Piano roll": "piano_roll", "Playlist": "playlist"}
 # "my song.flp - FL Studio 2025", or "Title - FL Studio 2025" for a project with a title in Project info, or
 # "FL Studio 2025" without a project. A * marks unsaved changes in some versions, not in FL Studio 2025.
 _TITLE = re.compile(r"^(?:(?P<name>.+?)\s*[–—-]\s*)?FL Studio\s*(?P<version>[\d.]*)\s*$")
+# While it renders an export, FL shows its progress there instead, in bars: "Rendering: 23/129"
+_RENDERING = re.compile(r"^Rendering:\s*(?P<done>\d+)\s*/\s*(?P<total>\d+)")
 # FL puts symbols of its icon font in some titles, like "808 Kick (Insert 1)" for a plugin: characters
 # of Unicode's private use areas, which show as boxes anywhere else
 _ICONS = re.compile("[-\U000f0000-\U0010ffff]")
@@ -85,6 +92,8 @@ class FLState:
     foreground: bool = False  # FL is the application the user is using
     project_file: str = ""
     pid: int = 0
+    export_file: str = ""  # the file FL is exporting the song to, like "song.wav", while it does
+    export_progress: int = None  # how much of it is done, in percent, once the rendering started
 
 
 def parse_title(title):
@@ -207,6 +216,33 @@ def focused_panel(thread):
     return None
 
 
+def export_file(pid):
+    """The name of the file FL is exporting to, like "song.wav", or "" when it isn't exporting."""
+    hwnd = None
+    while True:
+        hwnd = user32.FindWindowExW(None, hwnd, EXPORT_WINDOW_CLASS, None)
+        if not hwnd:
+            return ""
+        window_pid = wt.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+        if window_pid.value == pid and user32.IsWindowVisible(hwnd):
+            return export_name(_text(hwnd))
+
+
+def rendering_progress(title):
+    """The progress of a rendering, in percent, from FL's title "Rendering: 23/129", or None."""
+    match = _RENDERING.match(title or "")
+    if not match:
+        return None
+    return min(100, int(match.group("done")) * 100 // max(1, int(match.group("total"))))
+
+
+def export_name(title):
+    """The file of an export window's title: "Rendering to song.wav" gives "song.wav"."""
+    title = " ".join(without_icons(title).split())
+    return re.sub(r"^Rendering to\s*", "", title) or "the song"
+
+
 def process_path(pid):
     """The program a process runs, like C:\\...\\FL64.exe, or "" when it can't be told."""
     if not pid:
@@ -326,6 +362,7 @@ class FLWatcher:
         self._folder_pid = None
         self._last_panel = None
         self._project = None
+        self._title = ("", False, "")  # what FL's title says: (project, unsaved, version)
         self._project_file = ""
         self._next_lookup = 0.0
         self._last_input_tick = None
@@ -344,7 +381,12 @@ class FLWatcher:
             return FLState()
         hwnd, pid, thread = window
         self._hwnd = hwnd
-        project, unsaved, version = parse_title(_text(hwnd))
+        title = _text(hwnd)
+        progress = rendering_progress(title)
+        if progress is None:
+            self._title = parse_title(title)
+        # While rendering, FL's title shows the progress instead of the project, which stays the same
+        project, unsaved, version = self._title
         foreground_pid = wt.DWORD()
         user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), ctypes.byref(foreground_pid))
         foreground = foreground_pid.value == pid or self._part_of_fl(foreground_pid.value, pid)
@@ -362,8 +404,10 @@ class FLWatcher:
             self._project = project
             self._project_file = find_project_file(project, command_line(pid))
             self._next_lookup = time.monotonic() + self.LOOKUP_INTERVAL
+        exporting = export_file(pid)
         return FLState(running=True, project=project, unsaved=unsaved, version=version, panel=self._last_panel,
-                       foreground=foreground, project_file=self._project_file, pid=pid)
+                       foreground=foreground, project_file=self._project_file, pid=pid, export_file=exporting,
+                       export_progress=progress if exporting else None)
 
     def _part_of_fl(self, other_pid, fl_pid):
         """

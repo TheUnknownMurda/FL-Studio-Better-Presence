@@ -58,7 +58,7 @@ def test_menu_hides_the_status(make_app):
 def test_menu_secret_mode(make_app):
     app = make_app()
     app.secret_action.trigger()
-    assert Settings()["secret"] is True
+    assert Settings()["secret_mode"] == "always"
     assert app.engine.discord.shown["details"] == "Composing"
 
 
@@ -67,7 +67,7 @@ def test_menu_and_window_agree(make_app):
     app.show_settings()
     app.enabled_action.trigger()
     assert not app.window._enabled.isChecked()
-    app.window.secret_card.switch.setChecked(True)
+    app.window.secret_card.mode._pick("always")
     wait(400)
     assert app.secret_action.isChecked()
 
@@ -134,7 +134,7 @@ def test_menu_keeps_what_was_just_typed(make_app):
     app.secret_action.trigger()
     assert app.window.first_line.field.text() == "Late night session"
     assert Settings()["custom_details"] == "Late night session"
-    assert Settings()["secret"] is True
+    assert Settings()["secret_mode"] == "always"
 
 
 def test_quit(make_app):
@@ -143,3 +143,25 @@ def test_quit(make_app):
     app.quit()
     assert app.engine.discord.stopped
     assert not app.timer.isActive()
+
+
+def test_menu_secret_mode_goes_back(make_app):
+    app = make_app()
+    app.secret_action.trigger()
+    app.secret_action.trigger()
+    assert Settings()["secret_mode"] == "off"
+    Settings().update(secret_mode="some", secret_mode_before="some")
+    app = make_app()
+    assert not app.secret_action.isChecked()
+    app.secret_action.trigger()
+    assert Settings()["secret_mode"] == "always"
+    app.secret_action.trigger()
+    assert Settings()["secret_mode"] == "some"
+
+
+def test_menu_shows_the_time_in_fl_studio(make_app):
+    app = make_app()
+    app.engine.stats.add(2 * 3600 + 12 * 60, "Summer Vibes", app.engine.clock())
+    app._show_stats()
+    assert app.today_action.text() == "Today: 2 h 12 in FL Studio"
+    assert app.week_action.text() == "This week: 2 h 12"

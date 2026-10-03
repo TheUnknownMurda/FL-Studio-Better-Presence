@@ -104,3 +104,19 @@ def test_other_windows():
     assert classify("TEventEditForm", "Event editor - Pitch") is None
     assert classify("TFruityLoopsMainForm", "FL Studio 2025") is None
     assert classify("Button", "OK") is None
+
+
+def test_export_window_title():
+    from flbp.fl_watcher import export_name
+    assert export_name("Rendering to export test.wav") == "export test.wav"
+    assert export_name("Rendering to Mic Check Ready.mp3") == "Mic Check Ready.mp3"
+    assert export_name("Rendering to ") == "the song"
+
+
+def test_rendering_progress():
+    # While exporting, FL's title shows the bars rendered instead of the project
+    from flbp.fl_watcher import rendering_progress
+    assert rendering_progress("Rendering: 23/129") == 17
+    assert rendering_progress("Rendering: 129/129") == 100
+    assert rendering_progress("Mic Check Ready - FL Studio 2025") is None
+    assert rendering_progress("") is None

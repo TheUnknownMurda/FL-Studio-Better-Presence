@@ -22,6 +22,7 @@ from . import APP_NAME, __version__, startup
 from .discord_ipc import Status
 from .engine import Engine
 from .settings import Settings, config_dir
+from .stats import format_duration
 from .ui import RESOURCES, drawing
 from .ui.settings_window import SettingsWindow
 
@@ -72,12 +73,18 @@ class App(QtCore.QObject):
         self.status_action = self.menu.addAction("")
         self.status_action.setEnabled(False)
         self.menu.addSeparator()
+        self.today_action = self.menu.addAction("")
+        self.today_action.setEnabled(False)
+        self.week_action = self.menu.addAction("")
+        self.week_action.setEnabled(False)
+        self.menu.aboutToShow.connect(self._show_stats)
+        self.menu.addSeparator()
         self.enabled_action = self.menu.addAction("Show my status")
         self.enabled_action.setCheckable(True)
         self.enabled_action.toggled.connect(lambda checked: self._change(enabled=checked))
         self.secret_action = self.menu.addAction("Secret mode")
         self.secret_action.setCheckable(True)
-        self.secret_action.toggled.connect(lambda checked: self._change(secret=checked))
+        self.secret_action.toggled.connect(self._secret_toggled)
         self.menu.addSeparator()
         self.menu.addAction("Settings…").triggered.connect(self.show_settings)
         self.menu.addAction("Quit").triggered.connect(self.quit)
@@ -140,11 +147,27 @@ class App(QtCore.QObject):
             self.window.refresh_preview()
         self._show_state()
 
+    def _secret_toggled(self, checked):
+        """The menu's Secret mode hides every project; unchecked, it goes back to the mode chosen before."""
+        mode = self.settings["secret_mode"]
+        if checked:
+            self._change(secret_mode="always", secret_mode_before=mode if mode != "always" else "off")
+        else:
+            self._change(secret_mode=self.settings["secret_mode_before"])
+
+    def _show_stats(self):
+        now = self.engine.clock()
+        stats = self.engine.stats
+        self.today_action.setText(f"Today: {format_duration(stats.today(now))} in FL Studio")
+        self.week_action.setText(f"This week: {format_duration(sum(seconds for _, seconds in stats.week(now)))}")
+
     def _sync_menu(self):
-        for action, key in ((self.enabled_action, "enabled"), (self.secret_action, "secret")):
+        for action, checked in ((self.enabled_action, self.settings["enabled"]),
+                                (self.secret_action, self.settings["secret_mode"] == "always")):
             action.blockSignals(True)
-            action.setChecked(self.settings[key])
+            action.setChecked(checked)
             action.blockSignals(False)
+        self._show_stats()
         self._show_state()
 
     def show_settings(self):

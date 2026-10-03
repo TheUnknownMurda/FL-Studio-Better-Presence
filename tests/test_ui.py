@@ -33,13 +33,13 @@ def wait(milliseconds):
 
 def test_shows_the_saved_settings(application):
     from flbp.ui.settings_window import SettingsWindow
-    Settings().update(secret=True, custom_state="{bpm} · album", idle_minutes=25, idle_action="hide",
+    Settings().update(secret_mode="always", custom_state="{bpm} · album", idle_minutes=25, idle_action="hide",
                       small_icon="custom", small_icon_url="https://example.com/logo.png", button_label="Listen",
-                      button_url="https://soundcloud.com/me", reset_timer_per_project=False)
+                      button_url="https://soundcloud.com/me", timer_mode="fl")
     settings = Settings()
     window = SettingsWindow(settings, Engine(settings, FakeDiscord(), FakeWatcher(SONG)))
     try:
-        assert window.secret_card.switch.isChecked()
+        assert window.secret_card.mode.value() == "always"
         assert window.second_line.mode.value() == "custom"
         assert window.second_line.field.text() == "{bpm} · album"
         assert window.first_line.mode.value() == "auto"
@@ -48,15 +48,15 @@ def test_shows_the_saved_settings(application):
         assert window.small_icon.choice() == "custom"
         assert window.small_icon.link_text() == "https://example.com/logo.png"
         assert window.button_card.label() == "Listen"
-        assert not window.timer_card.restart.is_on()
+        assert window.timer_card.mode.value() == "fl"
     finally:
         window.close()
 
 
 def test_a_switch_is_saved_and_shown_in_discord(window):
-    window.secret_card.switch.setChecked(True)
+    window.secret_card.mode._pick("always")
     wait(400)
-    assert Settings()["secret"] is True
+    assert Settings()["secret_mode"] == "always"
     assert window.engine.discord.shown["details"] == "Composing"
     assert window.preview.details.text() == "Composing"
 
@@ -178,12 +178,12 @@ def test_example_while_fl_studio_is_closed(application):
 
 def test_reset_to_defaults(window):
     from PySide6 import QtWidgets
-    window.secret_card.switch.setChecked(True)
+    window.secret_card.mode._pick("always")
     window._reset.click()
     assert window._confirm.isVisible()
     window._confirm.findChild(QtWidgets.QPushButton, "danger").click()
     assert Settings().values == DEFAULTS
-    assert not window.secret_card.switch.isChecked()
+    assert window.secret_card.mode.value() == "off"
     assert not window._confirm.isVisible()
 
 
@@ -206,3 +206,45 @@ def test_status_line_of_the_menu():
     assert describe_with(status=Status.REFUSED) == ("problem", "Discord refused the app")
     assert describe_with(error="child \"activity\" fails") == ("problem", "Discord refused the status")
     assert describe_with(status=Status.OFF) == ("shown", "Connecting to Discord…")
+
+
+def test_secret_for_some_projects(window):
+    window.secret_card.mode._pick("some")
+    assert window.secret_card.words.isVisible()
+    window.secret_card.words.setText("client,  #private ,")
+    wait(400)
+    settings = Settings()
+    assert (settings["secret_mode"], settings["secret_words"], settings["secret_mode_before"]) == \
+        ("some", "client, #private", "some")
+
+
+def test_timer_choice(window):
+    window.timer_card.mode._pick("project")
+    wait(400)
+    assert Settings()["timer_mode"] == "project"
+    assert "counted" in window.timer_card.explanation.text()
+
+
+def test_button_to_the_projects_link(window):
+    from flbp.flp import ProjectInfo
+    card = window.button_card
+    card.source._pick("project")
+    assert not card.link.isVisible()
+    assert "text of the button" in card.error.text()
+    card.label_field.setText("Watch on YouTube")
+    wait(400)
+    assert not card.error.isVisible()
+    assert (Settings()["button_link"], Settings()["button_label"]) == ("project", "Watch on YouTube")
+    window.engine.project = ProjectInfo(bpm=143.0, url="www.youtube.com/c/JayCactusTV")
+    window.refresh_preview()
+    assert "Now: https://www.youtube.com/c/JayCactusTV." in card.explanation.text()
+
+
+def test_week_in_fl_studio(window):
+    now = window.engine.clock()
+    window.engine.stats.add(3600, "Summer Vibes", now)
+    window.refresh_preview()
+    card = window.stats_card
+    assert card.total.text() == "1 h 00"
+    assert card.today.text() == "this week · 1 h 00 today"
+    assert card.top.text() == "Most worked on: Summer Vibes, 1 h 00"

@@ -1,6 +1,6 @@
 [project]
 name = "fl-studio-better-presence"
-version = "1.0.3"
+version = "1.1.0"
 description = "Shows what you're making in FL Studio in your Discord status."
 readme = "README.md"
 license = "MIT"

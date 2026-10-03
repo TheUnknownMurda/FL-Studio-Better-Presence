@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <circle cx="512" cy="512" r="512" fill="#B8730F"/>
+  <!-- The track's waveform, going down into a file -->
+  <g fill="#FFFFFF">
+    <rect x="330" y="300" width="44" height="90" rx="22"/>
+    <rect x="410" y="255" width="44" height="180" rx="22"/>
+    <rect x="490" y="225" width="44" height="240" rx="22"/>
+    <rect x="570" y="265" width="44" height="160" rx="22"/>
+    <rect x="650" y="295" width="44" height="100" rx="22"/>
+  </g>
+  <path d="M 512 690 L 432 600 L 482 600 L 482 505 L 542 505 L 542 600 L 592 600 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M 322 610 L 322 712 Q 322 752 362 752 L 662 752 Q 702 752 702 712 L 702 610" fill="none" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

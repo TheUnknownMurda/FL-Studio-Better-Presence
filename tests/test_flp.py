@@ -117,3 +117,24 @@ def test_recent_projects():
     paths = [pathlib.Path(path) for path in fl_watcher.recent_projects() if pathlib.Path(path).is_file()]
     unreadable = [path.name for path in paths if flp.read_bpm(path) is None]
     assert not unreadable
+
+
+def test_project_info():
+    import struct as packing
+    times = bytes([237, 16]) + packing.pack("<dd", 46000.5, 11.9 / 24)
+    info = flp.info_from_bytes(project(*start(), dword(156, 143000), text(194, "Mic Check Ready"),
+                                       text(197, "https://www.youtube.com/c/JayCactusTV"), text(206, "UK Drill"),
+                                       text(207, "Jay Cactus x Confz"), times))
+    assert info.url == "https://www.youtube.com/c/JayCactusTV"
+    assert info.genre == "UK Drill"
+    assert info.artists == "Jay Cactus x Confz"
+    assert round(info.spent / 3600, 1) == 11.9
+
+
+@pytest.mark.skipif(not FL_DEMOS.exists(), reason="FL Studio 2025 isn't installed")
+def test_project_info_of_a_demo():
+    path = next(FL_DEMOS.rglob("Jay Cactus x Confz - Mic Check Ready.flp"))
+    info = flp.read_project(path)
+    assert (info.genre, info.artists) == ("UK Drill", "Jay Cactus x Confz")
+    assert info.url.startswith("https://www.youtube.com/")
+    assert 11 * 3600 < info.spent < 12 * 3600
