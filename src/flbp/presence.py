@@ -94,7 +94,7 @@ def small_icon(state, window, idle, settings, values):
 
 
 def window_text(panel, secret=False):
-    """The window the user works in, like "Piano roll · Lead synth" or "Mixer · Insert 3"."""
+    """The window the user works in, like "Mixer · Insert 3", "808 Kick · Insert 1" or "Piano roll"."""
     name = WINDOWS[panel.kind][1]
     if secret or not panel.detail:
         return name  # the names in FL could tell about the project
@@ -130,8 +130,8 @@ def discord_text(text, minimum=2, maximum=128):
     The text as Discord accepts it, or None when it is too short. Discord rejects the whole status when a text
     is too short or too long, and counts like JavaScript: an emoji counts as 2.
     """
-    # A file name can hold half an emoji, which isn't valid text anywhere else
-    text = (text or "").encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace").strip()
+    # FL can save a project under a name holding half an emoji, which isn't valid text anywhere else: it goes
+    text = (text or "").encode("utf-16-le", "surrogatepass").decode("utf-16-le", "ignore").strip()
     if _length(text) < minimum:
         return None
     if _length(text) > maximum:

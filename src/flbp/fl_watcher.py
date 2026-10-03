@@ -19,6 +19,7 @@ ntdll = ctypes.WinDLL("ntdll")
 user32.GetForegroundWindow.restype = wt.HWND
 user32.GetParent.restype = wt.HWND
 user32.GetParent.argtypes = [wt.HWND]
+user32.IsWindow.argtypes = [wt.HWND]
 user32.GetWindowTextW.argtypes = [wt.HWND, wt.LPWSTR, ctypes.c_int]
 user32.GetClassNameW.argtypes = [wt.HWND, wt.LPWSTR, ctypes.c_int]
 user32.GetWindowThreadProcessId.argtypes = [wt.HWND, ctypes.POINTER(wt.DWORD)]
@@ -43,6 +44,13 @@ EVENT_EDITORS = {"Piano roll": "piano_roll", "Playlist": "playlist"}
 # "my song - FL Studio 2025", "*my song - FL Studio 2025" with unsaved changes, "song.flp - FL Studio 21.2",
 # or "FL Studio 2025" without a project
 _TITLE = re.compile(r"^(?:(?P<name>.+?)\s*[–—-]\s*)?FL Studio\s*(?P<version>[\d.]*)\s*$")
+# FL puts symbols of its icon font in some titles, like "808 Kick (Insert 1)" for a plugin: characters
+# of Unicode's private use areas, which show as boxes anywhere else
+_ICONS = re.compile("[-\U000f0000-\U0010ffff]")
+
+
+def without_icons(text):
+    return _ICONS.sub("", text or "")
 
 ENUM_WINDOWS_PROC = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
 
@@ -78,7 +86,7 @@ class FLState:
 
 def parse_title(title):
     """Returns (project, unsaved, version) from the title of FL's main window."""
-    match = _TITLE.match((title or "").strip())
+    match = _TITLE.match(without_icons(title).strip())
     if not match:
         return "", False, ""
     version = match.group("version").rstrip(".")
@@ -92,7 +100,7 @@ def parse_title(title):
 
 def classify(window_class, title):
     """The Panel for one of FL's windows, or None when it isn't one of the panels the app knows."""
-    title = title or ""
+    title = " ".join(without_icons(title).split())
     detail = title.split(" - ", 1)[1].strip() if " - " in title else ""
     if window_class == EVENT_EDITOR_CLASS:
         for name, kind in EVENT_EDITORS.items():
@@ -119,27 +127,37 @@ def _class_name(hwnd):
     return buffer.value
 
 
-def find_main_window():
-    """(window, process id, thread id) of FL Studio's main window, or None when FL isn't running."""
+def _is_main_window(hwnd):
+    return bool(hwnd) and bool(user32.IsWindow(hwnd)) and _class_name(hwnd) == MAIN_WINDOW_CLASS
+
+
+def _window_info(hwnd):
+    pid = wt.DWORD()
+    thread = user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    return hwnd, pid.value, thread
+
+
+def find_main_window(known=None):
+    """
+    (window, process id, thread id) of FL Studio's main window, or None when FL isn't running. The window found
+    last time is given back as known, which saves going through every window of the computer.
+    """
+    # With several FL Studios open, the one in front wins
+    foreground = user32.GetForegroundWindow()
+    if _is_main_window(foreground):
+        return _window_info(foreground)
+    if _is_main_window(known):
+        return _window_info(known)
     found = []
 
     @ENUM_WINDOWS_PROC
     def callback(hwnd, _):
         if _class_name(hwnd) == MAIN_WINDOW_CLASS:
-            pid = wt.DWORD()
-            thread = user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            found.append((hwnd, pid.value, thread))
+            found.append(hwnd)
         return True
 
     user32.EnumWindows(callback, 0)
-    if not found:
-        return None
-    # With several FL windows open, the one in front wins
-    foreground = user32.GetForegroundWindow()
-    for window in found:
-        if window[0] == foreground:
-            return window
-    return found[0]
+    return _window_info(found[0]) if found else None
 
 
 def focused_panel(thread):
@@ -216,7 +234,7 @@ def find_project_file(project, fl_command_line=""):
     candidates = [part.strip() for part in fl_command_line.split('"') if part.strip().lower().endswith(".flp")]
     candidates += recent_projects()
     for candidate in candidates:
-        stem = os.path.splitext(os.path.basename(candidate))[0]
+        stem = without_icons(os.path.splitext(os.path.basename(candidate))[0]).strip()
         if stem.lower() == project.lower() and os.path.isfile(candidate):
             return candidate
     return ""
@@ -226,8 +244,11 @@ class FLWatcher:
     """Reads FL Studio's state each time poll() is called."""
 
     LOOKUP_INTERVAL = 5  # seconds between two searches for the file of a project that wasn't found
+    SEARCH_INTERVAL = 2  # seconds between two searches for FL Studio while it is closed
 
     def __init__(self):
+        self._hwnd = None
+        self._next_search = 0.0
         self._last_panel = None
         self._project = None
         self._project_file = ""
@@ -235,12 +256,19 @@ class FLWatcher:
         self._last_input_tick = None
 
     def poll(self):
-        window = find_main_window()
+        window = None
+        if self._hwnd or time.monotonic() >= self._next_search:
+            window = find_main_window(self._hwnd)
         if not window:
+            # Looking through every window of the computer is the costliest part, so it is done less often
+            if self._hwnd or time.monotonic() >= self._next_search:
+                self._next_search = time.monotonic() + self.SEARCH_INTERVAL
+            self._hwnd = None
             self._last_panel = None
             self._project = None
             return FLState()
         hwnd, pid, thread = window
+        self._hwnd = hwnd
         project, unsaved, version = parse_title(_text(hwnd))
         foreground_pid = wt.DWORD()
         user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), ctypes.byref(foreground_pid))

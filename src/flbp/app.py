@@ -44,6 +44,8 @@ def describe(engine):
         return "problem", "Discord refused the app"
     if discord.status == Status.NO_DISCORD:
         return "problem", "Discord isn't open"
+    if discord.status == Status.CONNECTED and discord.error:
+        return "problem", "Discord refused the status"
     if discord.status == Status.CONNECTED:
         return "shown", "Showing: " + ((engine.activity or {}).get("details") or "FL Studio")
     return "shown", "Connecting to Discord…"
@@ -160,6 +162,14 @@ class App(QtCore.QObject):
             self.tray.showMessage(APP_NAME, "Still running here, next to the clock: your status follows FL Studio. "
                                             "Click the icon for the settings.", self._icon("shown"), 8000)
 
+    def handle_message(self, text):
+        """A message from another copy of the app, started by the user or with --quit."""
+        log.info("Another copy asked to %s", "open the settings" if text == "settings" else text)
+        if text == "settings":
+            self.show_settings()
+        elif text == "quit":
+            self.quit()
+
     def quit(self):
         if self.window is not None:
             self.window.close()
@@ -207,7 +217,9 @@ class Instance(QtCore.QObject):
         if not socket.waitForConnected(2000):
             return False
         # Lets the running app bring its window to the front, which Windows only allows the app in front
-        ctypes.windll.user32.AllowSetForegroundWindow(ASFW_ANY)
+        user32 = ctypes.WinDLL("user32")
+        user32.AllowSetForegroundWindow.argtypes = [ctypes.c_uint32]
+        user32.AllowSetForegroundWindow(ASFW_ANY)
         socket.write(text.encode("utf-8"))
         socket.waitForBytesWritten(1000)
         socket.disconnectFromServer()
@@ -259,14 +271,7 @@ def main(argv=None):
     startup.refresh()
 
     app = App(settings, welcome=first_run)
-
-    def received(text):
-        if text == "settings":
-            app.show_settings()
-        elif text == "quit":
-            app.quit()
-
-    instance.message.connect(received)
+    instance.message.connect(app.handle_message)
     application.aboutToQuit.connect(app.engine.stop)
     if first_run or not background:
         app.show_settings()

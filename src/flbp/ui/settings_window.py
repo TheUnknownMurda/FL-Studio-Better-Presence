@@ -116,7 +116,7 @@ class IconCard(Card):
     """The small round icon on the FL Studio logo."""
 
     HINTS = {
-        "task": "Changes with the window you work in. Hovering it shows the window, like Piano roll · Lead synth.",
+        "task": "Changes with the window you work in. Hovering it shows the window, like Mixer · Insert 3.",
         "custom": "Your own picture, like your logo: a link to a PNG or JPG image on the web.",
         "none": "Only the FL Studio logo is shown.",
     }
@@ -382,12 +382,15 @@ class PreviewPanel(QtWidgets.QFrame):
 
     def show_status(self, activity, hidden, discord):
         """Shows the activity, why it is hidden if it is, and how the connection to Discord is going."""
-        running = discord.status == Status.CONNECTED or discord_running(discord.pipe_prefix)
-        if hidden == "closed" or running:
-            show_message(self.banner, "Discord refused the app: " + discord.error
-                         if discord.status == Status.REFUSED else "")
+        if discord.status == Status.REFUSED:
+            banner = "Discord refused the app: " + discord.error
+        elif discord.status == Status.CONNECTED and discord.error:
+            banner = "Discord refused your status: " + discord.error
+        elif hidden == "closed" or discord.status == Status.CONNECTED or discord_running(discord.pipe_prefix):
+            banner = ""
         else:
-            show_message(self.banner, "Discord isn't open. Your status shows up as soon as the Discord app runs.")
+            banner = "Discord isn't open. Your status shows up as soon as the Discord app runs."
+        show_message(self.banner, banner)
         kind, text = self.NOTES.get(hidden, ("", ""))
         for note_kind, note in self.notes.items():
             show_message(note, text if note_kind == kind else "")

@@ -15,8 +15,8 @@ BYTE_MODE_BLOCKING = 0  # PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, like 
 
 class FakeDiscord:
 
-    def __init__(self, refuse=False, reject_activities=False):
-        self.prefix = rf"\\.\pipe\flbp-test-{uuid.uuid4().hex}-"
+    def __init__(self, refuse=False, reject_activities=False, prefix=None):
+        self.prefix = prefix or rf"\\.\pipe\flbp-test-{uuid.uuid4().hex}-"
         self.refuse = refuse
         self.reject_activities = reject_activities
         self.client_id = None

@@ -33,6 +33,14 @@ def test_other_titles():
     assert parse_title("Untitled - Notepad") == ("", False, "")
 
 
+def test_panels_as_fl_studio_2025_titles_them():
+    # FL draws "Piano roll - 808 Kick" and "Playlist - Arrangement", but titles their windows without the name
+    assert classify("TEventEditForm", "Piano roll -") == Panel("piano_roll", "")
+    assert classify("TEventEditForm", "Playlist -") == Panel("playlist", "")
+    # and puts symbols of its icon font in the title of plugin windows
+    assert classify("TPluginForm", "808 Kick (Insert 1)") == Panel("plugin", "808 Kick (Insert 1)")
+
+
 def test_panels():
     assert classify("TEventEditForm", "Piano roll - Lead Synth") == Panel("piano_roll", "Lead Synth")
     assert classify("TEventEditForm", "Playlist - Arrangement") == Panel("playlist", "Arrangement")

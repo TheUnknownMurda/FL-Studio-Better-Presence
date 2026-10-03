@@ -47,6 +47,7 @@ def test_every_window():
 
 
 def test_window_details_when_hovering():
+    assert build(with_panel("piano_roll"))["assets"]["small_text"] == "Piano roll"
     assert build(with_panel("mixer", "Insert 3"))["assets"]["small_text"] == "Mixer · Insert 3"
     assert build(with_panel("plugin", "Serum (Insert 2)"))["assets"]["small_text"] == "Serum · Insert 2"
     assert build(with_panel("channel_rack"))["assets"]["small_text"] == "Channel rack"
@@ -132,10 +133,11 @@ def test_text_length():
 
 
 def test_half_an_emoji_in_a_file_name():
-    state = FLState(**{**STATE.__dict__, "project": "Melody\ud834 ♪"})
+    # As in a project the user saved: "(Melody\ud834 ♪\ud834\ud834)", where each 𝄞 lost its second half
+    state = FLState(**{**STATE.__dict__, "project": "(Melody\ud834 ♪\ud834\ud834) 🥁"})
     details = build(state)["details"]
     details.encode("utf-8")  # valid text
-    assert details == "Composing · Melody� ♪*"
+    assert details == "Composing · (Melody ♪) 🥁*"
 
 
 def test_unknown_placeholders():

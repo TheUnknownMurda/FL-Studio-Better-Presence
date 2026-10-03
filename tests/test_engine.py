@@ -3,37 +3,9 @@ import struct
 
 import pytest
 
+from fakes import SONG, FakeDiscord, FakeWatcher, song
 from flbp.engine import Engine
-from flbp.fl_watcher import FLState, Panel
 from flbp.settings import DEFAULTS
-
-SONG = FLState(running=True, project="Summer Vibes", version="2025", panel=Panel("piano_roll", "Lead synth"),
-               foreground=True)
-
-
-class FakeWatcher:
-    def __init__(self):
-        self.state = FLState()
-        self.input = False
-
-    def poll(self):
-        return self.state
-
-    def user_input_in_fl(self, state):
-        used, self.input = self.input, False
-        return used
-
-
-class FakeDiscord:
-    def __init__(self):
-        self.shown = None
-        self.stopped = False
-
-    def show(self, activity):
-        self.shown = activity
-
-    def stop(self):
-        self.stopped = True
 
 
 class Clock:
@@ -62,10 +34,6 @@ def run():
 
     tick.engine, tick.settings, tick.clock, tick.discord = engine, settings, clock, discord
     return tick
-
-
-def song(**changes):
-    return FLState(**{**SONG.__dict__, **changes})
 
 
 def test_nothing_shown_while_fl_studio_is_closed(run):

@@ -26,7 +26,7 @@ from flbp.ui import RESOURCES  # noqa: E402
 from flbp.ui.settings_window import PreviewPanel, SettingsWindow  # noqa: E402
 
 SONG = FLState(running=True, project="Summer Vibes", unsaved=True, version="2025",
-               panel=Panel("piano_roll", "Lead synth"), foreground=True)
+               panel=Panel("mixer", "Insert 3"), foreground=True)
 ELAPSED = 47 * 60 + 12
 
 

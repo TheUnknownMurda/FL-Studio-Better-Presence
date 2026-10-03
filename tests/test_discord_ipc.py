@@ -104,6 +104,22 @@ def test_discord_not_running():
         client.stop()
 
 
+def test_discord_opened_after_the_app():
+    prefix = rf"\\.\pipe\flbp-test-{uuid.uuid4().hex}-"
+    client = DiscordClient("1555738506310066286", prefix)
+    fake = None
+    try:
+        client.show(ACTIVITY)
+        assert wait_until(lambda: client.status == Status.NO_DISCORD)
+        fake = FakeDiscord(prefix=prefix)
+        assert wait_until(lambda: fake.last == ACTIVITY)
+        assert client.status == Status.CONNECTED
+    finally:
+        client.stop()
+        if fake:
+            fake.stop()
+
+
 def test_application_refused():
     fake = FakeDiscord(refuse=True)
     client = DiscordClient("1", fake.prefix)

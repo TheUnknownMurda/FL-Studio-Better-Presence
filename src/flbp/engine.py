@@ -12,7 +12,7 @@ DISCORD_APP_ID = "1555738506310066286"  # the "FL Studio" application on Discord
 
 # Shown in the settings window while FL Studio is closed, to see what the status will look like
 SAMPLE_STATE = FLState(running=True, project="Summer Vibes", unsaved=True, version="2025",
-                       panel=Panel("piano_roll", "Lead synth"), foreground=True)
+                       panel=Panel("piano_roll"), foreground=True)
 SAMPLE_BPM = 140.0
 SAMPLE_ELAPSED = 47 * 60 + 12
 
