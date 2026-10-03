@@ -1,5 +1,5 @@
 """
-Watches FL Studio from the outside: which project is open, whether it has unsaved changes, and which of FL's
+Watches FL Studio from the outside: which project is open, and which of FL's
 windows the user is working in. FL's panels (Piano roll, Playlist, Mixer...) are real Windows windows with
 their own class, so nothing needs to be installed in FL, and no MIDI device is needed.
 """
@@ -10,6 +10,8 @@ import re
 import time
 import winreg
 from dataclasses import dataclass
+
+from . import flp
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -42,8 +44,8 @@ PANEL_CLASSES = {
 EVENT_EDITOR_CLASS = "TEventEditForm"
 EVENT_EDITORS = {"Piano roll": "piano_roll", "Playlist": "playlist"}
 
-# "my song - FL Studio 2025", "*my song - FL Studio 2025" with unsaved changes, "song.flp - FL Studio 21.2",
-# or "FL Studio 2025" without a project
+# "my song.flp - FL Studio 2025", or "Title - FL Studio 2025" for a project with a title in Project info, or
+# "FL Studio 2025" without a project. A * marks unsaved changes in some versions, not in FL Studio 2025.
 _TITLE = re.compile(r"^(?:(?P<name>.+?)\s*[–—-]\s*)?FL Studio\s*(?P<version>[\d.]*)\s*$")
 # FL puts symbols of its icon font in some titles, like "808 Kick (Insert 1)" for a plugin: characters
 # of Unicode's private use areas, which show as boxes anywhere else
@@ -161,6 +163,31 @@ def find_main_window(known=None):
     return _window_info(found[0]) if found else None
 
 
+_plugin_kinds = {}  # each plugin window's kind, "plugin" for an instrument or "effect", worked out once
+
+
+def plugin_kind(hwnd):
+    """
+    "plugin" for an instrument's window, "effect" for an effect's: FL titles both alike, like "Serum (Insert 2)"
+    and "Fruity Parametric EQ 2 (Insert 2)", but only an instrument's window holds its channel's envelopes.
+    """
+    if hwnd not in _plugin_kinds:
+        if len(_plugin_kinds) > 200:
+            _plugin_kinds.clear()  # FL makes a new window each time a plugin is opened
+        found = []
+
+        @ENUM_WINDOWS_PROC
+        def look(child, _):
+            if _class_name(child) == "TMEnvEditor":
+                found.append(child)
+                return False
+            return True
+
+        user32.EnumChildWindows(hwnd, look, 0)
+        _plugin_kinds[hwnd] = "plugin" if found else "effect"
+    return _plugin_kinds[hwnd]
+
+
 def focused_panel(thread):
     """The panel holding the keyboard focus in FL's interface thread, or None."""
     info = GUITHREADINFO(cbSize=ctypes.sizeof(GUITHREADINFO))
@@ -173,6 +200,8 @@ def focused_panel(thread):
                 break
             panel = classify(_class_name(hwnd), _text(hwnd))
             if panel:
+                if panel.kind == "plugin":
+                    panel.kind = plugin_kind(hwnd)
                 return panel
             hwnd = user32.GetParent(hwnd)
     return None
@@ -245,15 +274,41 @@ def recent_projects():
     return paths
 
 
+_titles = {}  # the title saved in each project file looked at: {path: (modification time, title)}
+
+
+def project_title(path):
+    """The title typed in a project's Project info, "" when it has none, read once per version of the file."""
+    try:
+        modified = os.stat(path).st_mtime_ns
+    except OSError:
+        return ""
+    if _titles.get(path, (None,))[0] != modified:
+        if len(_titles) > 100:
+            _titles.clear()
+        _titles[path] = (modified, flp.read_project(path).title or "")
+    return _titles[path][1]
+
+
+def _comparable(name):
+    """A name as FL's title bar shows it: without icons, nor halves of emoji, which FL leaves out."""
+    name = without_icons(name).encode("utf-16-le", "surrogatepass").decode("utf-16-le", "ignore")
+    return " ".join(name.split()).lower()
+
+
 def find_project_file(project, fl_command_line=""):
     """The full path of the open project, found from FL's command line or recent projects, or ""."""
     if not project:
         return ""
+    wanted = _comparable(project)
     candidates = [part.strip() for part in fl_command_line.split('"') if part.strip().lower().endswith(".flp")]
     candidates += recent_projects()
     for candidate in candidates:
-        stem = without_icons(os.path.splitext(os.path.basename(candidate))[0]).strip()
-        if stem.lower() == project.lower() and os.path.isfile(candidate):
+        if not os.path.isfile(candidate):
+            continue
+        stem = os.path.splitext(os.path.basename(candidate))[0]
+        # FL shows the title typed in Project info rather than the file's name, when the project has one
+        if wanted in (_comparable(stem), _comparable(project_title(candidate))):
             return candidate
     return ""
 

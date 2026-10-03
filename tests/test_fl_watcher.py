@@ -1,3 +1,7 @@
+import os
+
+import pytest
+
 from flbp.fl_watcher import Panel, classify, parse_title
 
 
@@ -48,6 +52,37 @@ def test_panels():
     assert classify("TFXForm", "Mixer - Insert 3") == Panel("mixer", "Insert 3")
     assert classify("TPluginForm", "808 Kick (Insert 1)") == Panel("plugin", "808 Kick (Insert 1)")
     assert classify("TSampleListForm", "Browser") == Panel("browser", "")
+
+
+def test_project_file_found_by_its_title(tmp_path):
+    # FL's title bar says "Mic Check Ready", the title from Project info, for this file
+    import struct
+    from flbp.fl_watcher import find_project_file
+    title = "Mic Check Ready".encode("utf-16-le") + b"\0\0"
+    body = bytes([156]) + struct.pack("<I", 143000) + bytes([194, len(title)]) + title
+    path = tmp_path / "Jay Cactus x Confz - Mic Check Ready.flp"
+    path.write_bytes(b"FLhd" + struct.pack("<I", 6) + b"\0" * 6 + b"FLdt" + struct.pack("<I", len(body)) + body)
+    command_line = f'"C:\\Program Files\\Image-Line\\FL Studio 2025\\FL64.exe" "{path}"'
+    assert find_project_file("Mic Check Ready", command_line) == str(path)
+    assert find_project_file("Jay Cactus x Confz - Mic Check Ready", command_line) == str(path)
+    assert find_project_file("Another song", command_line) == ""
+
+
+def test_project_file_with_half_an_emoji_in_its_name(tmp_path):
+    # FL leaves the broken character out of its title bar
+    import struct
+    from flbp.fl_watcher import find_project_file
+    body = bytes([156]) + struct.pack("<I", 175000)
+    path = tmp_path / "x.flp"
+    path.write_bytes(b"FLhd" + struct.pack("<I", 6) + b"\0" * 6 + b"FLdt" + struct.pack("<I", len(body)) + body)
+    command_line = f'"FL64.exe" "{tmp_path}\\(Melody\ud834 ♪) {{808}}.flp"'
+    renamed = tmp_path / "(Melody\ud834 ♪) {808}.flp"
+    try:
+        path.rename(renamed)
+    except OSError:
+        pytest.skip("this file system refuses half an emoji in a name")
+    found = find_project_file("(Melody ♪) {808}", command_line)
+    assert found and os.path.samefile(found, renamed)
 
 
 def test_programs_of_fl_studios_folder():

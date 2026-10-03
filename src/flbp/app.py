@@ -105,7 +105,7 @@ class App(QtCore.QObject):
         badge, text = describe(self.engine)
         # Written when the status or the connection changes, not at every change of window
         discord = self.engine.discord
-        logged = badge, discord.status, discord.error
+        logged = badge, "Showing" if text.startswith("Showing") else text, discord.error
         if logged != self._logged:
             self._logged = logged
             log.info("%s%s", text, f" (Discord: {discord.error})" if discord.error else "")

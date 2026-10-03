@@ -54,6 +54,19 @@ def test_fl_25_2_3_and_later():
     assert flp.bpm_from_bytes(project(*events)) == 175.0
 
 
+def test_title_from_project_info():
+    info = flp.info_from_bytes(project(*start(), dword(156, 143000), text(194, "Mic Check Ready")))
+    assert info.bpm == 143.0
+    assert info.title == "Mic Check Ready"
+    assert flp.info_from_bytes(project(*start(), dword(156, 143000), text(194, ""))).title == ""
+
+
+def test_reading_stops_at_the_first_channel():
+    # The project's own information comes first: what follows the first channel isn't read
+    info = flp.info_from_bytes(project(*start(), word(64, 0), dword(156, 143000), text(194, "Late")))
+    assert info.bpm is None and info.title is None
+
+
 def test_tempo_before_fl_3_4():
     assert flp.bpm_from_bytes(project(text(199, "3.0"), word(66, 120))) == 120.0
 
@@ -92,8 +105,11 @@ def test_format_bpm():
 def test_fl_demo_projects():
     paths = sorted(FL_DEMOS.rglob("*.flp"))
     assert paths
-    unreadable = [path.name for path in paths if flp.read_bpm(path) is None]
-    assert not unreadable
+    infos = {path.name: flp.read_project(path) for path in paths}
+    assert not [name for name, info in infos.items() if info.bpm is None]
+    # The demos have a title in Project info, which FL shows instead of the file's name
+    assert infos["Jay Cactus x Confz - Mic Check Ready.flp"].title == "Mic Check Ready"
+    assert not [name for name, info in infos.items() if info.title is None]
 
 
 def test_recent_projects():

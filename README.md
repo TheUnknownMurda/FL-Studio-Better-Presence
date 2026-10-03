@@ -4,7 +4,7 @@ Discord Rich Presence for FL Studio. Shows what you're making in FL Studio in yo
 (composing, arranging, mixing…), the project, its tempo and how long you've been working on it.
 
 <p align="center">
-  <img src="docs/images/status.png" width="400" alt="The status: FL Studio, Mixing · Summer Vibes*, 140 BPM, 47:12 elapsed, a mixing icon on the FL Studio logo and a My SoundCloud button. Hovering the icon shows Mixer · Insert 3.">
+  <img src="docs/images/status.png" width="400" alt="The status: FL Studio, Mixing · Summer Vibes, 140 BPM, 47:12 elapsed, a mixing icon on the FL Studio logo and a My SoundCloud button. Hovering the icon shows Mixer · Insert 3.">
   <br>
   <em>Your status, as the settings window previews it.</em>
 </p>
@@ -15,9 +15,10 @@ windows from the outside, the way Windows shows them.
 ## Features
 
 - **What you're doing**, from the FL Studio window you work in: Composing in the Piano roll, Arranging in the
-  Playlist, Beat making in the Channel rack, Mixing in the Mixer, Sound design in a plugin, Browsing sounds in the Browser.
+  Playlist, Beat making in the Channel rack, Mixing in the Mixer and its effects, Sound design in an instrument,
+  Browsing sounds in the Browser.
 - **Small icon** on the FL Studio logo for each of them, with the window on hover, like "Mixer · Insert 3" or "808 Kick · Insert 1".
-- **Project name**, with a `*` when it has unsaved changes.
+- **Project name**, as FL Studio's title bar shows it: the file's name, or the title typed in Project info.
 - **Tempo** of the project, read from the `.flp` file each time you save it.
 - **Secret mode** for client work: hides the names of the project, the channels and the windows.
 - **Your own text** for each line, with placeholders.
@@ -93,7 +94,7 @@ separator next to it away: `{task} · {project}` shows "Composing" in secret mod
 ### Small icons
 
 <p align="center">
-  <img src="docs/images/icons.png" width="760" alt="The icons: Composing in the Piano roll, Arranging in the Playlist, Beat making in the Channel rack, Mixing in the Mixer, Sound design in plugin windows, Browsing sounds in the Browser, and Idle.">
+  <img src="docs/images/icons.png" width="760" alt="The icons: Composing in the Piano roll, Arranging in the Playlist, Beat making in the Channel rack, Mixing in the Mixer and its effects, Sound design in instruments, Browsing sounds in the Browser, and Idle.">
 </p>
 
 ## What the app reads

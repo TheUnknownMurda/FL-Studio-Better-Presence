@@ -484,7 +484,7 @@ class SettingsWindow(QtWidgets.QWidget):
         self.first_line = LineCard(
             "First line", "What you're doing in FL Studio, and on which project.",
             {"show_task": ("What you're doing", "Composing, Arranging, Mixing, Sound design..."),
-             "show_project": ("Project name", "Summer Vibes, with a * when it has unsaved changes")},
+             "show_project": ("Project name", "Summer Vibes, as FL Studio's title bar shows it")},
             "{task} · {project}")
         self.first_line.suggestion = "{task} · {project}"
         self.second_line = LineCard(

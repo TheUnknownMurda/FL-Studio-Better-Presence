@@ -25,7 +25,7 @@ from flbp.settings import Settings  # noqa: E402
 from flbp.ui import RESOURCES  # noqa: E402
 from flbp.ui.settings_window import PreviewPanel, SettingsWindow  # noqa: E402
 
-SONG = FLState(running=True, project="Summer Vibes", unsaved=True, version="2025",
+SONG = FLState(running=True, project="Summer Vibes", version="2025",
                panel=Panel("mixer", "Insert 3"), foreground=True)
 ELAPSED = 47 * 60 + 12
 
@@ -103,8 +103,8 @@ def status_picture(settings):
 
 def icons_picture():
     items = [("composing", "Composing", "Piano roll"), ("arranging", "Arranging", "Playlist"),
-             ("beatmaking", "Beat making", "Channel rack"), ("mixing", "Mixing", "Mixer"),
-             ("sounddesign", "Sound design", "Plugin windows"), ("browsing", "Browsing sounds", "Browser"),
+             ("beatmaking", "Beat making", "Channel rack"), ("mixing", "Mixing", "Mixer, effects"),
+             ("sounddesign", "Sound design", "Instruments"), ("browsing", "Browsing sounds", "Browser"),
              ("idle", "Idle", "Away for a while")]
     scale, cell_w, cell_h, icon, margin = 2, 112, 118, 56, 24
     width, height = margin * 2 + len(items) * cell_w, margin * 2 + cell_h

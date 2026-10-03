@@ -11,7 +11,8 @@ WINDOWS = {
     "playlist": ("Arranging", "Playlist", "arranging"),
     "channel_rack": ("Beat making", "Channel rack", "beatmaking"),
     "mixer": ("Mixing", "Mixer", "mixing"),
-    "plugin": ("Sound design", "Plugin", "sounddesign"),
+    "effect": ("Mixing", "Effect", "mixing"),  # an effect's window, opened from the mixer
+    "plugin": ("Sound design", "Plugin", "sounddesign"),  # an instrument's window
     "browser": ("Browsing sounds", "Browser", "browsing"),
 }
 DEFAULT_TASK = "Making music"  # until the user works in one of the windows above
@@ -98,8 +99,13 @@ def window_text(panel, secret=False):
     name = WINDOWS[panel.kind][1]
     if secret or not panel.detail:
         return name  # the names in FL could tell about the project
-    if panel.kind == "plugin":
-        return re.sub(r"\s*\((.+)\)$", r" · \1", panel.detail)  # "Serum (Insert 2)" gives "Serum · Insert 2"
+    if panel.kind in ("plugin", "effect"):
+        # "Serum (Insert 2)" gives "Serum · Insert 2", and "Pad 1 (Pad 1)", with its insert named alike, "Pad 1"
+        match = re.match(r"^(.*?)\s*\(([^()]*)\)$", panel.detail)
+        if not match:
+            return panel.detail
+        plugin, insert = match.group(1), match.group(2)
+        return plugin if insert.lower() == plugin.lower() else plugin + SEPARATOR + insert
     return name + SEPARATOR + panel.detail
 
 

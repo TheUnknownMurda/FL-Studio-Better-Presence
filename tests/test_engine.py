@@ -40,7 +40,7 @@ def test_nothing_shown_while_fl_studio_is_closed(run):
     assert run() is None
     assert run.engine.hidden == "closed"
     # The settings window shows an example meanwhile
-    assert run.engine.preview()["details"] == "Composing · Summer Vibes*"
+    assert run.engine.preview()["details"] == "Composing · Summer Vibes"
 
 
 def test_status_when_fl_studio_opens(run):

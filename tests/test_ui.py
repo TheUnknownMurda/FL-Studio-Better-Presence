@@ -171,7 +171,7 @@ def test_example_while_fl_studio_is_closed(application):
     window.show()
     try:
         assert window.preview.notes["info"].isVisible()
-        assert window.preview.details.text() == "Composing · Summer Vibes*"
+        assert window.preview.details.text() == "Composing · Summer Vibes"
     finally:
         window.close()
 

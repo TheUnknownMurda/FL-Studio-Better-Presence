@@ -46,9 +46,20 @@ def test_every_window():
         assert presence.icon_name(activity["assets"]["small_image"]) == icon
 
 
+def test_effect_window():
+    activity = build(with_panel("effect", "Fruity Parametric EQ 2 (Pad 1)"))
+    assert activity["details"] == "Mixing · Summer Vibes*"
+    assert presence.icon_name(activity["assets"]["small_image"]) == "mixing"
+    assert activity["assets"]["small_text"] == "Fruity Parametric EQ 2 · Pad 1"
+    assert build(with_panel("effect", "Fruity Limiter (Master)"), secret=True)["assets"]["small_text"] == "Effect"
+
+
 def test_window_details_when_hovering():
     assert build(with_panel("piano_roll"))["assets"]["small_text"] == "Piano roll"
     assert build(with_panel("mixer", "Insert 3"))["assets"]["small_text"] == "Mixer · Insert 3"
+    # A channel and its mixer insert named alike, as FL does by default
+    assert build(with_panel("plugin", "Pad 1 (Pad 1)"))["assets"]["small_text"] == "Pad 1"
+    assert build(with_panel("plugin", "Lead (main) (Insert 3)"))["assets"]["small_text"] == "Lead (main) · Insert 3"
     assert build(with_panel("plugin", "Serum (Insert 2)"))["assets"]["small_text"] == "Serum · Insert 2"
     assert build(with_panel("channel_rack"))["assets"]["small_text"] == "Channel rack"
 
