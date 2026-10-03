@@ -21,7 +21,7 @@ windows from the outside, the way Windows shows them.
 - **Tempo** of the project, read from the `.flp` file each time you save it.
 - **Secret mode** for client work: hides the names of the project, the channels and the windows.
 - **Your own text** for each line, with placeholders.
-- **Idle detection**: shows "Idle" or hides your status, and the time away isn't counted.
+- **Idle detection**: shows "Idle" or hides your status, and neither the time away nor the time the computer sleeps is counted.
 - **Button** with a link, to your SoundCloud for example.
 - **Settings window** with a live preview of what your friends see, where every change applies right away.
 - **Starts with Windows**: your status appears when FL Studio opens and goes away when it closes.
@@ -42,6 +42,12 @@ windows from the outside, the way Windows shows them.
 
 Your status shows up in Discord as soon as FL Studio is open.
 
+## Updating
+
+Start the new `FL-Studio-Better-Presence.exe`: it replaces the version that runs, keeps your settings, and is the
+one Windows starts from then on. To put it where the old one was, quit the app first (right-click its icon, then
+**Quit**): Windows doesn't let the file of a running app be replaced.
+
 ## Using it
 
 The app's icon is next to the clock. Windows may hide it under the **^** arrow: drag it to the taskbar to keep it in sight.
@@ -49,7 +55,7 @@ The app's icon is next to the clock. Windows may hide it under the **^** arrow: 
 - **Click** it to open the settings.
 - **Right-click** it for **Show my status**, **Secret mode**, **Settings…** and **Quit**.
 - Its dot tells what Discord shows: **blue** for your status, **grey** when FL Studio is closed or your status is hidden,
-  **yellow** when the Discord app isn't open.
+  **yellow** when the Discord app isn't open or refused the status.
 
 ## Settings
 
@@ -94,7 +100,8 @@ separator next to it away: `{task} · {project}` shows "Composing" in secret mod
 
 - The titles of FL Studio's windows, which Windows shows to every app: the project name, and the window you work in.
 - The start of your saved `.flp` file, for its tempo. The app finds it in FL Studio's list of recent projects.
-- Whether you use the keyboard or the mouse in FL Studio, to tell when you're away.
+- Whether you use the keyboard or the mouse in FL Studio, or in the plugins it runs apart (`ilbridge.exe`), to tell
+  when you're away.
 
 The app only talks to the Discord app on your computer, which shows your status to your friends. Discord downloads
 the icons from this GitHub repository.

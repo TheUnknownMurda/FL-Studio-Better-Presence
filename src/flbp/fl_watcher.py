@@ -26,6 +26,7 @@ user32.GetWindowThreadProcessId.argtypes = [wt.HWND, ctypes.POINTER(wt.DWORD)]
 kernel32.OpenProcess.restype = wt.HANDLE
 kernel32.OpenProcess.argtypes = [wt.DWORD, wt.BOOL, wt.DWORD]
 kernel32.CloseHandle.argtypes = [wt.HANDLE]
+kernel32.QueryFullProcessImageNameW.argtypes = [wt.HANDLE, wt.DWORD, wt.LPWSTR, ctypes.POINTER(wt.DWORD)]
 ntdll.NtQueryInformationProcess.argtypes = [wt.HANDLE, wt.ULONG, ctypes.c_void_p, wt.ULONG, ctypes.POINTER(wt.ULONG)]
 
 MAIN_WINDOW_CLASS = "TFruityLoopsMainForm"
@@ -177,6 +178,23 @@ def focused_panel(thread):
     return None
 
 
+def process_path(pid):
+    """The program a process runs, like C:\\...\\FL64.exe, or "" when it can't be told."""
+    if not pid:
+        return ""
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return ""
+    try:
+        buffer = ctypes.create_unicode_buffer(1024)
+        size = wt.DWORD(len(buffer))
+        if not kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+            return ""
+        return buffer.value
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def command_line(pid):
     """The command line FL was started with, which names the .flp when FL was opened from one."""
     handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
@@ -249,6 +267,8 @@ class FLWatcher:
     def __init__(self):
         self._hwnd = None
         self._next_search = 0.0
+        self._folder = ""  # FL Studio's installation folder
+        self._folder_pid = None
         self._last_panel = None
         self._project = None
         self._project_file = ""
@@ -272,7 +292,7 @@ class FLWatcher:
         project, unsaved, version = parse_title(_text(hwnd))
         foreground_pid = wt.DWORD()
         user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), ctypes.byref(foreground_pid))
-        foreground = foreground_pid.value == pid
+        foreground = foreground_pid.value == pid or self._part_of_fl(foreground_pid.value, pid)
 
         # While another application is in front, FL has no focused window: the last one found is kept,
         # so checking Discord doesn't change the status
@@ -289,6 +309,17 @@ class FLWatcher:
             self._next_lookup = time.monotonic() + self.LOOKUP_INTERVAL
         return FLState(running=True, project=project, unsaved=unsaved, version=version, panel=self._last_panel,
                        foreground=foreground, project_file=self._project_file, pid=pid)
+
+    def _part_of_fl(self, other_pid, fl_pid):
+        """
+        True for a program of FL Studio's own folder, like ilbridge.exe, where FL runs some plugins apart: working
+        in them is working in FL. A web browser FL opened a link in doesn't count.
+        """
+        if fl_pid != self._folder_pid:
+            path = process_path(fl_pid)
+            self._folder = os.path.dirname(path).lower() + os.sep if path else ""
+            self._folder_pid = fl_pid
+        return bool(self._folder) and process_path(other_pid).lower().startswith(self._folder)
 
     def user_input_in_fl(self, state):
         """True when the keyboard or mouse was used since the last call while FL was the active application."""

@@ -15,10 +15,11 @@ BYTE_MODE_BLOCKING = 0  # PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, like 
 
 class FakeDiscord:
 
-    def __init__(self, refuse=False, reject_activities=False, prefix=None):
+    def __init__(self, refuse=False, reject_activities=False, prefix=None, odd_answers=False):
         self.prefix = prefix or rf"\\.\pipe\flbp-test-{uuid.uuid4().hex}-"
         self.refuse = refuse
         self.reject_activities = reject_activities
+        self.odd_answers = odd_answers  # answers shaped unlike Discord's, which mustn't stop the app
         self.client_id = None
         self.activities = []  # (time, activity) for each update received
         self.pongs = []
@@ -93,13 +94,16 @@ class FakeDiscord:
                     self._reply(CLOSE, {"code": 4000, "message": "Invalid Client ID"})
                     return
                 self.client_id = message.get("client_id")
-                self._reply(FRAME, {"cmd": "DISPATCH", "evt": "READY",
-                                    "data": {"v": 1, "user": {"username": "tester", "global_name": "Tester"}}})
+                user = "Tester" if self.odd_answers else {"username": "tester", "global_name": "Tester"}
+                self._reply(FRAME, {"cmd": "DISPATCH", "evt": "READY", "data": {"v": 1, "user": user}})
                 self.connected.set()
             elif op == FRAME and message.get("cmd") == "SET_ACTIVITY":
                 activity = message["args"].get("activity")
                 self.activities.append((time.monotonic(), activity))
-                if self.reject_activities:
+                if self.odd_answers:
+                    self._reply(FRAME, {"cmd": "SET_ACTIVITY", "evt": "ERROR", "nonce": message["nonce"],
+                                        "data": ["not", "an", "object"]})
+                elif self.reject_activities:
                     self._reply(FRAME, {"cmd": "SET_ACTIVITY", "evt": "ERROR", "nonce": message["nonce"],
                                         "data": {"code": 4000, "message": "child \"activity\" fails"}})
                 else:

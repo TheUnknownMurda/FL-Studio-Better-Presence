@@ -80,6 +80,34 @@ def test_idle_and_back(run):
     assert shown["timestamps"]["start"] == start + 30 * 60 + 1
 
 
+def test_computer_asleep_isnt_counted(run):
+    start = run(state=SONG, used=True)["timestamps"]["start"]
+    run(60, used=True)
+    run.clock.now += 8 * 3600  # the lid closed for the night, then a key pressed to wake the computer up
+    shown = run(used=True)
+    assert shown["timestamps"]["start"] == start + 8 * 3600
+    assert not run.engine.idle
+
+
+def test_computer_asleep_while_idle(run):
+    start = run(state=SONG, used=True)["timestamps"]["start"]
+    run(10 * 60)  # idle: the timer pauses
+    assert run.engine.idle
+    run.clock.now += 8 * 3600
+    shown = run(used=True)
+    # Neither the night nor the 10 minutes before it count
+    assert shown["timestamps"]["start"] == start + 8 * 3600 + 10 * 60 + 1
+
+
+def test_clock_set_back(run):
+    start = run(state=SONG, used=True)["timestamps"]["start"]
+    run(60, used=True)
+    run.clock.now -= 3600
+    shown = run(used=True)
+    assert shown["timestamps"]["start"] == start - 3600  # still 61 seconds of work
+    assert not run.engine.idle
+
+
 def test_hidden_while_away(run):
     run.settings["idle_action"] = "hide"
     run(state=SONG, used=True)

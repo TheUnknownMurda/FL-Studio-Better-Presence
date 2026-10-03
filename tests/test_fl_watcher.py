@@ -50,6 +50,21 @@ def test_panels():
     assert classify("TSampleListForm", "Browser") == Panel("browser", "")
 
 
+def test_programs_of_fl_studios_folder():
+    # How plugins FL runs apart, in ilbridge.exe, count as FL. This Python stands for FL Studio here.
+    import os
+    from flbp.fl_watcher import FLWatcher, process_path
+    this = process_path(os.getpid())
+    assert os.path.basename(this).lower() == "python.exe"
+    assert process_path(0) == ""
+    watcher = FLWatcher()
+    assert watcher._part_of_fl(os.getpid(), os.getpid())
+    parent = process_path(os.getppid())
+    in_folder = parent.lower().startswith(os.path.dirname(this).lower() + os.sep)
+    assert watcher._part_of_fl(os.getppid(), os.getpid()) == in_folder
+    assert not watcher._part_of_fl(0, os.getpid())
+
+
 def test_other_windows():
     assert classify("TEventEditForm", "Event editor - Pitch") is None
     assert classify("TFruityLoopsMainForm", "FL Studio 2025") is None

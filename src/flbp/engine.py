@@ -16,6 +16,9 @@ SAMPLE_STATE = FLState(running=True, project="Summer Vibes", unsaved=True, versi
 SAMPLE_BPM = 140.0
 SAMPLE_ELAPSED = 47 * 60 + 12
 
+TICK_INTERVAL = 1  # seconds between two ticks
+CLOCK_JUMP = 30  # seconds: a tick this late or early means the computer slept or its clock changed
+
 
 class BpmReader:
     """The tempo of the open project, read again from its .flp each time it is saved."""
@@ -61,11 +64,20 @@ class Engine:
         self.hidden = "closed"  # why Discord shows nothing: "closed" (FL Studio), "off", "away", or ""
         self._timer_start = None
         self._last_input = clock()
+        self._last_tick = None
         self._bpm_reader = BpmReader()
 
     def tick(self):
         """Reads FL Studio's state and updates the status. Called every second."""
         now = self.clock()
+        if self._last_tick is not None:
+            jump = now - self._last_tick - TICK_INTERVAL
+            if abs(jump) > CLOCK_JUMP:
+                # The computer slept, or its clock was changed: that time isn't counted as work, nor as time away
+                if self._timer_start is not None:
+                    self._timer_start = min(self._timer_start + jump, now)
+                self._last_input += jump
+        self._last_tick = now
         previous, state = self.state, self.watcher.poll()
         self.state = state
         if not state.running:

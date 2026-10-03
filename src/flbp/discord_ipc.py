@@ -7,6 +7,7 @@ The connection lives in its own thread, so a busy or frozen Discord never makes 
 import ctypes
 import ctypes.wintypes as wt
 import json
+import logging
 import msvcrt
 import os
 import struct
@@ -14,6 +15,7 @@ import threading
 import time
 import uuid
 
+log = logging.getLogger("flbp")
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 kernel32.PeekNamedPipe.argtypes = [wt.HANDLE, ctypes.c_void_p, wt.DWORD, ctypes.c_void_p,
                                    ctypes.POINTER(wt.DWORD), ctypes.c_void_p]
@@ -39,6 +41,11 @@ class Status:
     REFUSED = "refused"  # Discord refused the connection, with the reason in DiscordClient.error
 
 
+def _dict(value):
+    """The value when it is a JSON object, or an empty one: Discord's answers are read without trusting them."""
+    return value if isinstance(value, dict) else {}
+
+
 def discord_running(pipe_prefix=None):
     """True when a Discord app is listening, without connecting to it."""
     folder, _, name = (pipe_prefix or PIPE_PREFIX).rpartition("\\")
@@ -60,6 +67,7 @@ class DiscordClient:
         self._wanted = None  # the activity to show, or None
         self._sent = None  # the activity Discord shows
         self._pipe = None
+        self._failure = Status.NO_DISCORD  # why the last connection failed, shown until the next try
         self._next_connect = 0.0
         self._next_update = 0.0
         self._wake = threading.Event()
@@ -84,16 +92,27 @@ class DiscordClient:
 
     def _run(self):
         while not self._stopping:
-            self._wake.wait(0.5)
+            self._wake.wait(self._wait_time())
             self._wake.clear()
             try:
                 self._step()
-            except (OSError, ValueError) as error:  # Discord closed, froze, or sent something unreadable
+            except Exception as error:  # Discord closed, froze, or answered something unexpected
+                if not isinstance(error, (OSError, ValueError)):
+                    log.exception("Unexpected answer from Discord")
                 self._disconnect()
-                self.status = Status.NO_DISCORD
-                self.error = str(error)
-                self._next_connect = time.monotonic() + RETRY_INTERVAL
+                self._fail(Status.NO_DISCORD, str(error), RETRY_INTERVAL)
         self._disconnect()
+
+    def _wait_time(self):
+        """How long the thread can sleep: until show() is called, a retry or an update is due, or a ping comes."""
+        if self._wanted is None and self._pipe is None:
+            return None
+        now = time.monotonic()
+        if self._pipe is None:
+            return max(0.05, self._next_connect - now)
+        if self._wanted != self._sent and self._next_update > now:
+            return min(1.0, self._next_update - now)
+        return 1.0
 
     def _step(self):
         wanted = self._wanted
@@ -103,11 +122,19 @@ class DiscordClient:
             self.status = Status.OFF
             return
         if self._pipe is None:
-            if time.monotonic() < self._next_connect or not self._connect():
+            if time.monotonic() < self._next_connect:
+                self.status = self._failure
+                return
+            if not self._connect():
                 return
         self._read_waiting()
         if wanted != self._sent and time.monotonic() >= self._next_update:
             self._set_activity(wanted)
+
+    def _fail(self, status, error, retry_in):
+        self.status = self._failure = status
+        self.error = error
+        self._next_connect = time.monotonic() + retry_in
 
     def _connect(self):
         for number in range(PIPE_COUNT):
@@ -117,20 +144,18 @@ class DiscordClient:
             except OSError:
                 continue
         else:
-            self.status = Status.NO_DISCORD
-            self._next_connect = time.monotonic() + RETRY_INTERVAL
+            self._fail(Status.NO_DISCORD, "", RETRY_INTERVAL)
             return False
         self._send(HANDSHAKE, {"v": 1, "client_id": self.client_id})
         op, message = self._read(time.monotonic() + REPLY_TIMEOUT)
         if op != FRAME or message.get("evt") != "READY":
             # An unknown application id is refused this way
             self._disconnect()
-            self.status = Status.REFUSED
-            self.error = message.get("message") or "Discord refused the connection."
-            self._next_connect = time.monotonic() + REFUSED_RETRY_INTERVAL
+            self._fail(Status.REFUSED, str(message.get("message") or "Discord refused the connection."),
+                       REFUSED_RETRY_INTERVAL)
             return False
-        user = (message.get("data") or {}).get("user") or {}
-        self.user = user.get("global_name") or user.get("username") or ""
+        user = _dict(_dict(message.get("data")).get("user"))
+        self.user = str(user.get("global_name") or user.get("username") or "")
         self.status = Status.CONNECTED
         self.error = ""
         return True
@@ -143,7 +168,7 @@ class DiscordClient:
         # Kept even when refused: the same activity would be refused again
         self._sent = activity
         if reply.get("evt") == "ERROR":
-            self.error = (reply.get("data") or {}).get("message") or "Discord refused the status."
+            self.error = str(_dict(reply.get("data")).get("message") or "Discord refused the status.")
         else:
             self.error = ""
 

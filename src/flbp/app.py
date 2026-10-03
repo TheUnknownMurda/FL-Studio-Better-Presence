@@ -14,6 +14,7 @@ import logging
 import logging.handlers
 import os
 import sys
+import time
 
 from PySide6 import QtCore, QtGui, QtNetwork, QtWidgets
 
@@ -128,6 +129,8 @@ class App(QtCore.QObject):
 
     def _change(self, **changes):
         """A change made from the menu."""
+        if self.window is not None:
+            self.window.flush()  # or the window would show again the text as it was before the last keystrokes
         if all(self.settings[key] == value for key, value in changes.items()):
             return
         self.settings.update(**changes)
@@ -164,10 +167,14 @@ class App(QtCore.QObject):
 
     def handle_message(self, text):
         """A message from another copy of the app, started by the user or with --quit."""
-        log.info("Another copy asked to %s", "open the settings" if text == "settings" else text)
         if text == "settings":
+            log.info("Started again: opening the settings")
             self.show_settings()
+        elif text == "update":
+            log.info("A newer version was started: quitting so it takes over")
+            self.quit()
         elif text == "quit":
+            log.info("Asked to quit by another copy")
             self.quit()
 
     def quit(self):
@@ -180,19 +187,44 @@ class App(QtCore.QObject):
         QtWidgets.QApplication.quit()
 
 
+def version_tuple(version):
+    """(1, 0, 2) for "1.0.2", to compare versions."""
+    return tuple(int(part) for part in version.split(".") if part.isdigit())
+
+
 class Instance(QtCore.QObject):
-    """Makes sure only one copy of the app runs, and lets a second one ask it to open its settings."""
+    """
+    Makes sure only one copy of the app runs. Started again, the app asks the running copy to open its settings,
+    or to quit when the new copy is a newer version, which then takes over: starting an update just works.
+    """
 
     message = QtCore.Signal(str)
 
     def __init__(self):
         super().__init__()
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        kernel32.CreateMutexW.restype = ctypes.c_void_p
-        # Kept for as long as the app runs: Windows releases it when the app quits, even after a crash
-        self._mutex = kernel32.CreateMutexW(None, False, "Local\\" + INSTANCE_NAME)
-        self.first = ctypes.get_last_error() != ERROR_ALREADY_EXISTS
+        self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._kernel32.CreateMutexW.restype = ctypes.c_void_p
+        self._kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+        self._mutex = None
+        self.first = self._claim()
         self._server = None
+
+    def _claim(self):
+        """True when no other copy runs. The mutex is kept while the app runs; Windows frees it when it quits."""
+        if self._mutex:
+            self._kernel32.CloseHandle(self._mutex)
+        self._mutex = self._kernel32.CreateMutexW(None, False, "Local\\" + INSTANCE_NAME)
+        return ctypes.get_last_error() != ERROR_ALREADY_EXISTS
+
+    def wait_for_exit(self, timeout=10.0):
+        """Waits for the running copy to quit, then becomes the one that runs. False when it didn't quit."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._claim():
+                self.first = True
+                return True
+            time.sleep(0.1)
+        return False
 
     def listen(self):
         self._server = QtNetwork.QLocalServer(self)
@@ -206,24 +238,37 @@ class Instance(QtCore.QObject):
         if socket is None:
             return
         socket.waitForReadyRead(1000)
-        self.message.emit(bytes(socket.readAll()).decode("utf-8", "replace"))
+        text = bytes(socket.readAll()).decode("utf-8", "replace").strip()
+        if text.startswith("hello "):
+            # A copy that was just started, with its version
+            newer = version_tuple(text[len("hello "):]) > version_tuple(__version__)
+            socket.write(b"bye" if newer else b"ok")
+            socket.waitForBytesWritten(1000)
+            text = "update" if newer else "settings"
         socket.disconnectFromServer()
+        self.message.emit(text)
 
     @staticmethod
-    def send(text):
-        """Sends a message to the app that runs. True when it got it."""
+    def send(text, answer_timeout=0):
+        """
+        Sends a message to the running copy and returns its answer: "" when it gives none, None when it can't be
+        reached.
+        """
         socket = QtNetwork.QLocalSocket()
         socket.connectToServer(INSTANCE_NAME)
         if not socket.waitForConnected(2000):
-            return False
-        # Lets the running app bring its window to the front, which Windows only allows the app in front
+            return None
+        # Lets the running copy bring its window to the front, which Windows only allows the app in front
         user32 = ctypes.WinDLL("user32")
         user32.AllowSetForegroundWindow.argtypes = [ctypes.c_uint32]
         user32.AllowSetForegroundWindow(ASFW_ANY)
         socket.write(text.encode("utf-8"))
         socket.waitForBytesWritten(1000)
+        answer = ""
+        if answer_timeout and socket.waitForReadyRead(answer_timeout):
+            answer = bytes(socket.readAll()).decode("utf-8", "replace").strip()
         socket.disconnectFromServer()
-        return True
+        return answer
 
 
 def setup_logging():
@@ -251,13 +296,20 @@ def main(argv=None):
 
     instance = Instance()
     if not instance.first:
-        # Already running: it opens its settings, unless Windows started this copy
         if "--quit" in argv:
             Instance.send("quit")
-        elif not background:
-            Instance.send("settings")
-        return 0
-    if "--quit" in argv:
+            return 0
+        if background:
+            return 0  # started by Windows while already running
+        answer = Instance.send(f"hello {__version__}", answer_timeout=1500)
+        if answer == "":
+            # Versions before 1.0.2 don't answer, and are older than this one: it replaces them
+            Instance.send("quit")
+        elif answer != "bye":
+            return 0  # the running copy opened its settings
+        if not instance.wait_for_exit():
+            return 0
+    elif "--quit" in argv:
         return 0  # not running
     instance.listen()
 

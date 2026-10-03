@@ -107,8 +107,34 @@ def test_messages_from_another_copy(make_app):
     app.handle_message("settings")
     assert app.window is not None
     app.handle_message("something else")  # ignored
+    assert not app.engine.discord.stopped
     app.handle_message("quit")
     assert app.engine.discord.stopped
+
+
+def test_newer_version_takes_over(make_app):
+    app = make_app()
+    app.handle_message("update")
+    assert app.engine.discord.stopped
+
+
+def test_versions_compared():
+    from flbp.app import version_tuple
+    assert version_tuple("1.0.10") > version_tuple("1.0.9")
+    assert version_tuple("1.0.2") > version_tuple("1.0.1")
+    assert version_tuple("1.0.2") == version_tuple("1.0.2")
+    assert version_tuple("garbage") < version_tuple("1.0.0")
+
+
+def test_menu_keeps_what_was_just_typed(make_app):
+    app = make_app()
+    app.show_settings()
+    app.window.first_line.mode._pick("custom")
+    app.window.first_line.field.setText("Late night session")  # not applied yet: typing pauses first
+    app.secret_action.trigger()
+    assert app.window.first_line.field.text() == "Late night session"
+    assert Settings()["custom_details"] == "Late night session"
+    assert Settings()["secret"] is True
 
 
 def test_quit(make_app):

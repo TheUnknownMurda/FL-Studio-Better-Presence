@@ -2,9 +2,13 @@
 The user's settings, saved as JSON in %APPDATA%\\FL Studio Better Presence.
 """
 import json
+import logging
 import os
+import time
 
 from . import APP_NAME
+
+log = logging.getLogger("flbp")
 
 DEFAULTS = {
     "enabled": True,  # show my status
@@ -51,7 +55,8 @@ class Settings:
     def load(self):
         """Reads the saved settings. A missing or damaged value keeps its default."""
         try:
-            with open(self.path, encoding="utf-8") as file:
+            # utf-8-sig also reads a file saved by an editor that adds a byte order mark, like old Notepad
+            with open(self.path, encoding="utf-8-sig") as file:
                 saved = json.load(file)
         except (OSError, ValueError):
             return
@@ -77,11 +82,23 @@ class Settings:
         self.save()
 
     def save(self):
-        folder = os.path.dirname(self.path)
-        os.makedirs(folder, exist_ok=True)
-        # Written beside it then swapped, so a crash never leaves half a file
+        """Writes the settings. When the disk refuses, they still apply until the app quits, and the problem is logged."""
         temporary = self.path + ".tmp"
-        with open(temporary, "w", encoding="utf-8") as file:
-            json.dump(self.values, file, indent=2, ensure_ascii=False)
-        os.replace(temporary, self.path)
+        try:
+            os.makedirs(os.path.dirname(self.path), exist_ok=True)
+            # Written beside it then swapped, so a crash never leaves half a file. In ASCII, so any text gets
+            # written, even half an emoji pasted from a file name.
+            with open(temporary, "w", encoding="utf-8") as file:
+                json.dump(self.values, file, indent=2)
+            for attempt in range(5):
+                try:
+                    os.replace(temporary, self.path)
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.05)  # an antivirus or the search indexer reading the file for a moment
+        except OSError as error:
+            log.warning("Couldn't save the settings: %s", error)
+            return
         self.first_run = False

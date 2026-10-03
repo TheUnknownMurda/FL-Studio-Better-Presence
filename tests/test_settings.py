@@ -40,6 +40,25 @@ def test_unreadable_file():
     assert Settings().values == DEFAULTS
 
 
+def test_half_an_emoji_pasted_in_a_text():
+    Settings().update(custom_details="Melody\ud834 ♪ 🎹")
+    assert Settings()["custom_details"] == "Melody\ud834 ♪ 🎹"
+
+
+def test_file_with_byte_order_mark():
+    settings = Settings()
+    os.makedirs(os.path.dirname(settings.path))
+    with open(settings.path, "w", encoding="utf-8-sig") as file:  # as old Notepad saves
+        json.dump({"secret": True}, file)
+    assert Settings()["secret"] is True
+
+
+def test_disk_refusing_doesnt_stop_the_app(tmp_path):
+    settings = Settings(path=str(tmp_path))  # a folder: the file can't be written there
+    settings.update(secret=True)  # logged, not raised
+    assert settings["secret"] is True  # still applies until the app quits
+
+
 def test_reset():
     settings = Settings()
     settings.update(secret=True)

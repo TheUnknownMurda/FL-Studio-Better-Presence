@@ -2,6 +2,7 @@
 The settings window: every setting on the left, and on the right what friends see in Discord, read from the
 engine every second. Every change is saved and sent to Discord right away.
 """
+import logging
 import time
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -12,6 +13,8 @@ from ..settings import IDLE_MINUTES_RANGE
 from . import RESOURCES, drawing
 from .widgets import (Card, PlaceholderBar, Segmented, Switch, SwitchCard, SwitchRow, message_label,
                       set_text_quietly, show_message, text_field)
+
+log = logging.getLogger("flbp")
 
 SMALL_ICONS = {"task": "What I'm doing", "custom": "My image", "none": "None"}
 IDLE_ACTIONS = {"show": "Show “Idle”", "hide": "Hide my status", "off": "Do nothing"}
@@ -653,8 +656,16 @@ class SettingsWindow(QtWidgets.QWidget):
         self.refresh_preview()
 
     def _startup_toggled(self, checked):
-        startup.set_enabled(checked)
-        self.startup_card.switch.set_quietly(startup.is_enabled())
+        try:
+            startup.set_enabled(checked)
+        except OSError as error:
+            log.warning("Couldn't change starting with Windows: %s", error)
+        self.startup_card.switch.set_quietly(startup.is_enabled())  # what Windows really does
+
+    def flush(self):
+        """Applies what was typed in the last moments, before a setting changes elsewhere."""
+        if self._apply_timer.isActive():
+            self.apply()
 
     def refresh_preview(self):
         self.preview.show_status(self.engine.preview(), self.engine.hidden, self.engine.discord)
@@ -665,7 +676,6 @@ class SettingsWindow(QtWidgets.QWidget):
         self.away_card.keep.setVisible(custom and self.away_card.action.value() == "show")
 
     def closeEvent(self, event):
-        if self._apply_timer.isActive():
-            self.apply()  # typing that wasn't applied yet
+        self.flush()
         self._preview_timer.stop()
         super().closeEvent(event)

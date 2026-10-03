@@ -146,6 +146,46 @@ def test_activity_refused_isnt_sent_again():
         fake.stop()
 
 
+def test_odd_answers_dont_stop_the_connection():
+    fake = FakeDiscord(odd_answers=True)
+    client = DiscordClient("1555738506310066286", fake.prefix)
+    try:
+        client.show(ACTIVITY)
+        assert wait_until(lambda: client.error == "Discord refused the status.")
+        assert client.user == ""
+        # Still working: the next activity is sent
+        client.show({**ACTIVITY, "state": "150 BPM"})
+        assert wait_until(lambda: fake.last == {**ACTIVITY, "state": "150 BPM"})
+        assert client._thread.is_alive()
+    finally:
+        client.stop()
+        fake.stop()
+
+
+def test_refusal_shown_while_waiting_to_try_again():
+    fake = FakeDiscord(refuse=True)
+    client = DiscordClient("1", fake.prefix)
+    try:
+        client.show(ACTIVITY)
+        assert wait_until(lambda: client.status == Status.REFUSED)
+        client.show(None)  # FL Studio closed
+        assert wait_until(lambda: client.status == Status.OFF)
+        client.show(ACTIVITY)  # and opened again before the next try
+        time.sleep(0.6)
+        assert client.status == Status.REFUSED
+    finally:
+        client.stop()
+        fake.stop()
+
+
+def test_asleep_with_nothing_to_show():
+    client = DiscordClient("1555738506310066286", rf"\\.\pipe\flbp-test-{uuid.uuid4().hex}-")
+    try:
+        assert client._wait_time() is None  # no wake-ups at all until there is something to show
+    finally:
+        client.stop()
+
+
 def test_discord_running(discord):
     assert discord_running(discord.prefix)
     assert not discord_running(rf"\\.\pipe\flbp-test-{uuid.uuid4().hex}-")
