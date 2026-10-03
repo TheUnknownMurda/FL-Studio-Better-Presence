@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <circle cx="512" cy="512" r="512" fill="#2F9E44"/>
+  <!-- Notes in the piano roll -->
+  <g fill="#FFFFFF">
+    <rect x="262" y="300" width="250" height="76" rx="22"/>
+    <rect x="440" y="424" width="322" height="76" rx="22"/>
+    <rect x="262" y="548" width="208" height="76" rx="22"/>
+    <rect x="510" y="672" width="252" height="76" rx="22"/>
+  </g>
+</svg>

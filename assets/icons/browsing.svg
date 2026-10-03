@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <circle cx="512" cy="512" r="512" fill="#0E8A9C"/>
+  <!-- A folder of sounds -->
+  <path d="M 252 352 C 252 330 270 312 292 312 L 432 312 L 482 362 L 732 362 C 754 362 772 380 772 402 L 772 692 C 772 714 754 732 732 732 L 292 732 C 270 732 252 714 252 692 Z" fill="#FFFFFF"/>
+  <g fill="#0E8A9C">
+    <rect x="552" y="452" width="34" height="190" rx="10"/>
+    <path d="M 552 452 L 652 432 L 652 486 L 586 500 Z"/>
+    <circle cx="520" cy="640" r="52"/>
+  </g>
+</svg>

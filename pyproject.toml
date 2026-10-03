@@ -1,0 +1,15 @@
+[project]
+name = "fl-studio-better-presence"
+version = "1.0.0"
+description = "Shows what you're making in FL Studio in your Discord status."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["PySide6-Essentials>=6.8"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pyinstaller"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

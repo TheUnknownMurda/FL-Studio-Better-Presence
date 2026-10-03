@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <circle cx="512" cy="512" r="512" fill="#7A4AC4"/>
+  <!-- Three faders of the Mixer -->
+  <g stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-opacity="0.6">
+    <line x1="362" y1="282" x2="362" y2="742"/>
+    <line x1="512" y1="282" x2="512" y2="742"/>
+    <line x1="662" y1="282" x2="662" y2="742"/>
+  </g>
+  <g fill="#FFFFFF">
+    <rect x="307" y="562" width="110" height="70" rx="18"/>
+    <rect x="457" y="372" width="110" height="70" rx="18"/>
+    <rect x="607" y="482" width="110" height="70" rx="18"/>
+  </g>
+</svg>

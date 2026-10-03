@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <circle cx="512" cy="512" r="512" fill="#B23A86"/>
+  <!-- A synth knob, turned two thirds of the way -->
+  <path d="M 335.2 688.8 A 250 250 0 1 1 688.8 688.8" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" stroke-opacity="0.45"/>
+  <path d="M 335.2 688.8 A 250 250 0 1 1 708.4 357.2" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="160" fill="#FFFFFF"/>
+  <line x1="512" y1="512" x2="604" y2="420" stroke="#B23A86" stroke-width="36" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <circle cx="512" cy="512" r="512" fill="#1F8F7A"/>
+  <!-- The play button -->
+  <polygon points="430,330 430,694 714,512" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="60" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,283 @@
+/* Settings window, in the colors of Discord's dark theme since it is about a Discord status */
+
+#SettingsWindow {
+    background-color: #1E1F22;
+}
+
+#SettingsWindow QLabel {
+    color: #DBDEE1;
+    font-size: 9pt;
+}
+
+#SettingsWindow QLabel#title {
+    color: #F2F3F5;
+    font-size: 14pt;
+    font-weight: bold;
+}
+
+#SettingsWindow QLabel#subtitle,
+#SettingsWindow QLabel#hint {
+    color: #B5BAC1;
+}
+
+#SettingsWindow QLabel#sectionLabel {
+    color: #949BA4;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+#SettingsWindow QLabel#warning {
+    color: #F0B232;
+}
+
+#SettingsWindow QLabel#error {
+    color: #FA777C;
+}
+
+#SettingsWindow QFrame#card {
+    background-color: #2B2D31;
+    border-radius: 8px;
+}
+
+#SettingsWindow QLabel#cardTitle {
+    color: #F2F3F5;
+    font-size: 10pt;
+    font-weight: bold;
+}
+
+#SettingsWindow QLabel#switchLabel {
+    color: #F2F3F5;
+}
+
+#SettingsWindow QLineEdit,
+#SettingsWindow QSpinBox {
+    background-color: #1E1F22;
+    color: #F2F3F5;
+    border: 1px solid #3F4147;
+    border-radius: 4px;
+    padding: 5px 7px;
+    selection-background-color: #5865F2;
+}
+
+#SettingsWindow QLineEdit:focus,
+#SettingsWindow QSpinBox:focus {
+    border-color: #5865F2;
+}
+
+#SettingsWindow QSpinBox {
+    padding-right: 22px;
+}
+
+#SettingsWindow QSpinBox::up-button,
+#SettingsWindow QSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 20px;
+    border: none;
+    background-color: transparent;
+}
+
+#SettingsWindow QSpinBox::up-button {
+    subcontrol-position: top right;
+}
+
+#SettingsWindow QSpinBox::down-button {
+    subcontrol-position: bottom right;
+}
+
+#SettingsWindow QSpinBox::up-button:hover,
+#SettingsWindow QSpinBox::down-button:hover {
+    background-color: #35373C;
+}
+
+/* {resources} is replaced by the folder of the app's pictures when the window loads this file */
+#SettingsWindow QSpinBox::up-arrow {
+    image: url("{resources}/chevron-up.svg");
+    width: 10px;
+    height: 10px;
+}
+
+#SettingsWindow QSpinBox::down-arrow {
+    image: url("{resources}/chevron-down.svg");
+    width: 10px;
+    height: 10px;
+}
+
+#SettingsWindow QFrame#segmented {
+    background-color: #1E1F22;
+    border-radius: 6px;
+}
+
+#SettingsWindow QPushButton#segment {
+    background-color: transparent;
+    color: #B5BAC1;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+
+#SettingsWindow QPushButton#segment:hover {
+    background-color: #35373C;
+    color: #F2F3F5;
+}
+
+#SettingsWindow QPushButton#segment:checked {
+    background-color: #5865F2;
+    color: #FFFFFF;
+}
+
+#SettingsWindow QPushButton#chip {
+    background-color: #35373C;
+    color: #DBDEE1;
+    border: none;
+    border-radius: 10px;
+    padding: 3px 10px;
+    font-size: 8pt;
+}
+
+#SettingsWindow QPushButton#chip:hover {
+    background-color: #404249;
+    color: #FFFFFF;
+}
+
+#SettingsWindow QPushButton#primary {
+    background-color: #5865F2;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    padding: 7px 20px;
+    font-weight: bold;
+}
+
+#SettingsWindow QPushButton#primary:hover {
+    background-color: #4752C4;
+}
+
+#SettingsWindow QPushButton#danger {
+    background-color: #DA373C;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    padding: 7px 16px;
+    font-weight: bold;
+}
+
+#SettingsWindow QPushButton#danger:hover {
+    background-color: #A12828;
+}
+
+#SettingsWindow QPushButton#flat {
+    background-color: transparent;
+    color: #B5BAC1;
+    border: none;
+    padding: 7px 4px;
+}
+
+#SettingsWindow QPushButton#flat:hover {
+    color: #F2F3F5;
+}
+
+#SettingsWindow QScrollArea,
+#SettingsWindow QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+    border: none;
+}
+
+#SettingsWindow QScrollBar:vertical {
+    background-color: transparent;
+    width: 8px;
+    margin: 0;
+}
+
+#SettingsWindow QScrollBar::handle:vertical {
+    background-color: #2B2D31;
+    border-radius: 4px;
+    min-height: 32px;
+}
+
+#SettingsWindow QScrollBar::add-line:vertical,
+#SettingsWindow QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+#SettingsWindow QScrollBar::add-page:vertical,
+#SettingsWindow QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+#SettingsWindow QFrame#previewPanel {
+    background-color: #111214;
+    border-radius: 8px;
+}
+
+#SettingsWindow QFrame#activityCard {
+    background-color: #232428;
+    border-radius: 8px;
+}
+
+#SettingsWindow QLabel#activityHeader {
+    color: #B5BAC1;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+#SettingsWindow QLabel#activityName {
+    color: #F2F3F5;
+    font-weight: bold;
+}
+
+#SettingsWindow QLabel#activityLine {
+    color: #DBDEE1;
+}
+
+#SettingsWindow QLabel#activityTimer {
+    color: #23A55A;
+}
+
+#SettingsWindow QLabel#activityButton {
+    background-color: #4E5058;
+    color: #FFFFFF;
+    border-radius: 4px;
+    padding: 6px;
+}
+
+#SettingsWindow QLabel#banner {
+    background-color: #3D3423;
+    color: #F0B232;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+#SettingsWindow QLabel#hiddenNote {
+    background-color: #3B2A2C;
+    color: #FA777C;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+#SettingsWindow QLabel#info {
+    background-color: #262A45;
+    color: #C9CDFB;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+#SettingsWindow QLabel#hoverName {
+    color: #949BA4;
+    font-size: 8pt;
+    font-weight: bold;
+}
+
+#SettingsWindow QLabel#hoverText {
+    color: #DBDEE1;
+}
+
+#SettingsWindow QLabel#connection {
+    color: #949BA4;
+}
+
+QToolTip {
+    background-color: #111214;
+    color: #DBDEE1;
+    border: 1px solid #3F4147;
+    padding: 4px 6px;
+}

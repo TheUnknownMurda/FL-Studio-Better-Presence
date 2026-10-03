@@ -1,0 +1,47 @@
+# PyInstaller recipe of the .exe: a single file holding Python, Qt and the app. build.bat runs it.
+import sys
+
+from PyInstaller.utils.win32 import versioninfo
+
+sys.path.insert(0, "src")
+import flbp  # noqa: E402
+
+numbers = tuple(int(part) for part in flbp.__version__.split(".")) + (0,)
+version = versioninfo.VSVersionInfo(
+    ffi=versioninfo.FixedFileInfo(filevers=numbers, prodvers=numbers),
+    kids=[
+        versioninfo.StringFileInfo([versioninfo.StringTable("040904B0", [
+            versioninfo.StringStruct("ProductName", flbp.APP_NAME),
+            versioninfo.StringStruct("FileDescription", flbp.APP_NAME),
+            versioninfo.StringStruct("ProductVersion", flbp.__version__),
+            versioninfo.StringStruct("FileVersion", flbp.__version__),
+            versioninfo.StringStruct("OriginalFilename", f"{flbp.APP_NAME}.exe"),
+            versioninfo.StringStruct("LegalCopyright", "TheUnknownMurda"),
+        ])]),
+        versioninfo.VarFileInfo([versioninfo.VarStruct("Translation", [1033, 1200])]),
+    ],
+)
+
+a = Analysis(
+    ["run.py"],
+    pathex=["src"],
+    datas=[("src/flbp/resources", "flbp/resources"), ("src/flbp/ui/style.qss", "flbp/ui")],
+    excludes=["tkinter", "unittest", "pydoc", "doctest", "pytest", "ssl", "_ssl"],
+)
+# Parts of Qt the app doesn't use: software OpenGL, image formats other than PNG and SVG, encryption for the
+# web, touch screens. The offscreen platform stays, for the tests that run the .exe without showing it.
+UNUSED = ("opengl32sw", "qdirect2d", "qminimal", "qtuiotouchplugin", "qsvgicon", "qgif", "qicns", "qico", "qjpeg",
+          "qtga", "qtiff", "qwbmp", "qwebp", "plugins\\tls", "networkinformation", "libssl", "libcrypto")
+a.binaries = [entry for entry in a.binaries if not any(part in entry[0].lower().replace("/", "\\") for part in UNUSED)]
+pyz = PYZ(a.pure)
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    name=flbp.APP_NAME,
+    icon="assets/app.ico",
+    version=version,
+    console=False,
+    upx=False,  # compressed programs look suspicious to antivirus software
+)
